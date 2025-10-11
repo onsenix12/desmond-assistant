@@ -2,6 +2,28 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Paperclip, MoreVertical, Calendar, Clock, Users } from 'lucide-react';
 
 const FamilyButlerChat = () => {
+  const STORAGE_CLEAR_MARK = 'butler_cleared_2025_10_01';
+  const WELCOME_MARK = 'butler_welcome_shown_v1';
+
+  const getInitialMessages = () => ([
+    {
+      id: 1,
+      type: 'assistant',
+      content: "Hi! I can be your AI copilot across your calendar, tasks, and routines. Do you want me to connect with your apps so I can help you the ultimate way? For this demo, I can connect Google Calendar or run in demo mode.",
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      actions: [
+        { label: 'Connect Google Calendar', type: 'primary' },
+        { label: 'Connect Outlook (demo)', type: 'secondary' },
+        { label: 'Connect WhatsApp (demo)', type: 'secondary' },
+        { label: 'Not now', type: 'secondary' }
+      ],
+      suggestions: [
+        'Show my calendar',
+        'What should I focus on today?',
+        'Plan a surprise for my family'
+      ]
+    }
+  ]);
   const [message, setMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState(() => {
@@ -9,19 +31,7 @@ const FamilyButlerChat = () => {
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
-    return [
-      {
-        id: 1,
-        type: 'assistant',
-        content: "Good evening, Desmond! I've synced your work and family calendars for tomorrow. 1 potential conflict needs your call — want to review now?",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        suggestions: [
-          "Review calendar conflicts",
-          "What should I focus on tomorrow?",
-          "Plan a surprise for my family"
-        ]
-      }
-    ];
+    return getInitialMessages();
   });
   const [memory, setMemory] = useState(() => {
     const saved = localStorage.getItem('butler_memory');
@@ -44,23 +54,30 @@ const FamilyButlerChat = () => {
       history: []
     };
   });
-  const [calendar, setCalendar] = useState(() => {
-    const saved = localStorage.getItem('butler_calendar');
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
-    return [
-      { id: 'e1', title: 'Strategic Planning', start: '2025-09-25T09:00', end: '2025-09-25T10:00', who: ['You'] },
-      { id: 'e2', title: 'Client Call', start: '2025-09-25T09:30', end: '2025-09-25T10:15', who: ['You'] },
-      { id: 'e3', title: 'Family Dinner', start: '2025-09-25T18:30', end: '2025-09-25T19:30', who: ['Family'] }
-    ];
-  });
-  const firstEventDate = (() => {
-    const first = [...(calendar || [])].sort((a,b) => new Date(a.start) - new Date(b.start))[0];
-    return first ? new Date(first.start) : new Date();
-  })();
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(firstEventDate);
+  // Google Calendar integration (MVP)
+  const DEMO_ONLY = true; // set to false when enabling real Google OAuth
+  const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID'; // TODO: replace with your real Client ID
+  const GOOGLE_SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
+  const [googleToken, setGoogleToken] = useState(null);
+  const [gisReady, setGisReady] = useState(false);
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
+  const [connectedApps, setConnectedApps] = useState({ google: false, outlookDemo: false, whatsappDemo: false });
+  // Demo mode (no external API). Used automatically when not authenticated.
+  const todayBase = new Date();
+  const withTime = (h, m) => new Date(todayBase.getFullYear(), todayBase.getMonth(), todayBase.getDate(), h, m, 0).toISOString();
+  const [demoEvents, setDemoEvents] = useState([
+    { id: 'd1', title: 'Strategic Planning', start: withTime(9, 0), end: withTime(10, 0) },
+    { id: 'd2', title: 'Client Call', start: withTime(11, 30), end: withTime(12, 0) },
+    { id: 'd3', title: 'Family Dinner', start: withTime(18, 30), end: withTime(19, 30) }
+  ]);
+  const [demoOutlookEvents, setDemoOutlookEvents] = useState([
+    { id: 'o1', title: 'Team Standup (Outlook)', start: withTime(10, 0), end: withTime(10, 15) },
+    { id: 'o2', title: 'Project Sync (Outlook)', start: withTime(14, 0), end: withTime(14, 45) }
+  ]);
+  const [demoWhatsAppMsgs, setDemoWhatsAppMsgs] = useState([
+    { id: 'w1', from: 'Emily', time: withTime(8, 15), text: 'Can we do dinner at 7:30 tonight?' },
+    { id: 'w2', from: 'Jayden', time: withTime(13, 5), text: 'Dad, can you review my project later?' }
+  ]);
 
   const messagesEndRef = useRef(null);
 
@@ -72,13 +89,112 @@ const FamilyButlerChat = () => {
     localStorage.setItem('butler_messages', JSON.stringify(messages));
   }, [messages]);
 
+  // One-time clear of old local data so the new onboarding shows cleanly
+  useEffect(() => {
+    if (localStorage.getItem(STORAGE_CLEAR_MARK) !== '1') {
+      try {
+        localStorage.clear();
+      } catch {}
+      localStorage.setItem(STORAGE_CLEAR_MARK, '1');
+      setMessages(getInitialMessages());
+    }
+  }, []);
+
+  // Add a short opening tip message once per device
+  useEffect(() => {
+    if (localStorage.getItem(WELCOME_MARK) !== '1') {
+      const tip = buildAssistant("Tip: You can say ‘Show my calendar’, ‘Connect apps’, or ‘Create an event for today at 3 PM’. I can run in demo mode or connect when you’re ready.");
+      setMessages(prev => [...prev, tip]);
+      localStorage.setItem(WELCOME_MARK, '1');
+    }
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('butler_memory', JSON.stringify(memory));
   }, [memory]);
 
+  // Load Google Identity Services client script (skipped in demo-only mode)
   useEffect(() => {
-    localStorage.setItem('butler_calendar', JSON.stringify(calendar));
-  }, [calendar]);
+    if (DEMO_ONLY) return;
+    const existing = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (existing) return setGisReady(true);
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setGisReady(true);
+    script.onerror = () => setGisReady(false);
+    document.head.appendChild(script);
+  }, []);
+
+  const ensureGoogleAuth = async () => {
+    if (DEMO_ONLY) return null;
+    if (googleToken) return googleToken;
+    if (!gisReady || !window.google?.accounts?.oauth2) {
+      throw new Error('Google auth not ready');
+    }
+    return new Promise((resolve, reject) => {
+      try {
+        setIsConnectingGoogle(true);
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: GOOGLE_SCOPES,
+          prompt: 'consent',
+          callback: (resp) => {
+            setIsConnectingGoogle(false);
+            if (resp?.access_token) {
+              setGoogleToken(resp.access_token);
+              resolve(resp.access_token);
+            } else {
+              reject(new Error('Failed to get access token'));
+            }
+          }
+        });
+        tokenClient.requestAccessToken();
+      } catch (err) {
+        setIsConnectingGoogle(false);
+        reject(err);
+      }
+    });
+  };
+
+  const fetchGoogleEventsForDate = async (date) => {
+    const token = await ensureGoogleAuth();
+    const timeMin = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0).toISOString();
+    const timeMax = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59).toISOString();
+    const resp = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!resp.ok) throw new Error('Failed to fetch events');
+    const data = await resp.json();
+    return (data.items || []).map(ev => ({
+      id: ev.id,
+      title: ev.summary || '(no title)',
+      start: ev.start?.dateTime || ev.start?.date,
+      end: ev.end?.dateTime || ev.end?.date,
+      location: ev.location
+    }));
+  };
+
+  const createGoogleEvent = async ({ summary, startDateTime, endDateTime, description, location }) => {
+    const token = await ensureGoogleAuth();
+    const resp = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        summary,
+        description,
+        location,
+        start: { dateTime: startDateTime },
+        end: { dateTime: endDateTime }
+      })
+    });
+    if (!resp.ok) throw new Error('Failed to create event');
+    return resp.json();
+  };
 
   const handleSendMessage = () => {
     if (!message.trim()) return;
@@ -136,37 +252,107 @@ const FamilyButlerChat = () => {
 
     setMessages(prev => [...prev, newUserMessage]);
 
-    // Show typing indicator
-    setIsTyping(true);
-    
-    setTimeout(() => {
-      setIsTyping(false);
-      const aiResponse = generateActionResponse(action.label);
-      setMessages(prev => [...prev, aiResponse]);
-    }, 1500);
+    // Special actions that require async side-effects
+    const run = async () => {
+      try {
+        setIsTyping(true);
+        if (action.label === 'Connect Google Calendar') {
+          if (!DEMO_ONLY) {
+            await ensureGoogleAuth();
+          }
+          setConnectedApps(prev => ({ ...prev, google: true }));
+          let content;
+          if (DEMO_ONLY) {
+            content = demoEvents.length === 0
+              ? 'Connected (demo). No events found for today.'
+              : `Connected (demo).\n\nToday\'s events:\n\n${demoEvents.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+          } else {
+            const events = await fetchGoogleEventsForDate(new Date());
+            content = events.length === 0
+              ? 'Connected to Google Calendar. No events found for today.'
+              : `Connected to Google Calendar.\n\nToday\'s events:\n\n${events.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+          }
+          const resultMsg = buildAssistant(content, [ { label: "Refresh today's events", type: 'secondary' }, { label: 'Create an event for today at 3 PM', type: 'secondary' } ]);
+          setIsTyping(false);
+          setMessages(prev => [...prev, resultMsg]);
+          return;
+        }
+        if (action.label === "Refresh today's events") {
+          if (!googleToken) {
+            const content = demoEvents.length === 0
+              ? 'Demo: No events for today.'
+              : `Demo — Today\'s events:\n\n${demoEvents.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+            setIsTyping(false);
+            setMessages(prev => [...prev, buildAssistant(content)]);
+            return;
+          }
+          const events = await fetchGoogleEventsForDate(new Date());
+          const content = events.length === 0
+            ? 'No events found for today.'
+            : `Today\'s events:\n\n${events.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+          setIsTyping(false);
+          setMessages(prev => [...prev, buildAssistant(content)]);
+          return;
+        }
+        if (action.label === 'Create an event for today at 3 PM') {
+          const today = new Date();
+          const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 0, 0).toISOString();
+          const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 30, 0).toISOString();
+          if (!googleToken) {
+            const newEvent = { id: `demo-${Date.now()}`, title: 'Focus block', start, end };
+            const updated = [...demoEvents, newEvent].sort((a,b)=> new Date(a.start)-new Date(b.start));
+            setDemoEvents(updated);
+            const content = `Demo: Event created — Focus block, 3:00–3:30 PM today.\n\nUpdated list:\n\n${updated.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+            setIsTyping(false);
+            setMessages(prev => [...prev, buildAssistant(content)]);
+            return;
+          }
+          if (DEMO_ONLY) {
+            const newEvent = { id: `demo-${Date.now()}`, title: 'Focus block', start, end };
+            const updated = [...demoEvents, newEvent].sort((a,b)=> new Date(a.start)-new Date(b.start));
+            setDemoEvents(updated);
+            const content = `Demo: Event created — Focus block, 3:00–3:30 PM today.\n\nUpdated list:\n\n${updated.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+            setIsTyping(false);
+            setMessages(prev => [...prev, buildAssistant(content)]);
+          } else {
+            await createGoogleEvent({ summary: 'Focus block', startDateTime: start, endDateTime: end, description: 'Created via Family Butler', location: undefined });
+            const ok = buildAssistant('Event created: Focus block, 3:00–3:30 PM today.');
+            const events = await fetchGoogleEventsForDate(new Date());
+            const content = events.length === 0
+              ? 'No events found for today.'
+              : `Updated list:\n\n${events.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+            setIsTyping(false);
+            setMessages(prev => [...prev, ok, buildAssistant(content)]);
+          }
+          return;
+        }
+        // Default behavior for other actions
+        await new Promise(r => setTimeout(r, 1500));
+        setIsTyping(false);
+        const aiResponse = generateActionResponse(action.label);
+        setMessages(prev => [...prev, aiResponse]);
+      } catch (err) {
+        setIsTyping(false);
+        setMessages(prev => [...prev, buildAssistant(`Something went wrong: ${err.message}`)]);
+      }
+    };
+    run();
   };
 
   const generateAIResponse = (userMessage) => {
     const lowerMsg = userMessage.toLowerCase();
     
-    if (lowerMsg.includes('review calendar conflicts') || lowerMsg.includes('conflict')) {
-      const conflicts = findConflicts(calendar);
-      if (conflicts.length === 0) {
-        return buildAssistant(
-          "All synced. No conflicts found for tomorrow. Want me to optimize transitions or add buffers?",
-          undefined,
-          ["Add 10-min buffers between meetings", "Protect my peak hours", "Plan a surprise for my family"]
-        );
+    // Show Google Calendar (MVP)
+    if (lowerMsg.includes('show my calendar') || lowerMsg.includes("show today's calendar") || lowerMsg.includes('show calendar') || lowerMsg.includes("what's my schedule")) {
+      if (!googleToken) {
+        const content = demoEvents.length === 0
+          ? 'Demo: No events for today.'
+          : `Demo — Today\'s events:\n\n${demoEvents.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+        return buildAssistant(content, [ { label: "Refresh today's events", type: 'secondary' }, { label: 'Create an event for today at 3 PM', type: 'secondary' } ]);
       }
-      const summary = conflicts.map((c, i) => `${i+1}. ${formatTime(c.a.start)} ${c.a.title} overlaps ${formatTime(c.b.start)} ${c.b.title}`).join('\n');
       return buildAssistant(
-        `I found ${conflicts.length} potential conflict(s):\n\n${summary}\n\nI can propose fixes. Want me to:`,
-        [
-          { label: "Auto-resolve with smart moves", type: "primary" },
-          { label: "Show options for each conflict", type: "secondary" },
-          { label: "Ignore for now", type: "secondary" }
-        ],
-        ["Optimize my time", "Protect my peak hours"]
+        'Fetching today\'s events from Google Calendar... ',
+        [ { label: 'Refresh today\'s events', type: 'secondary' }, { label: 'Create an event for today at 3 PM', type: 'secondary' } ]
       );
     }
     
@@ -182,6 +368,19 @@ const FamilyButlerChat = () => {
           "Check family availability tonight"
         ]
       };
+    }
+
+    if (lowerMsg.includes('connect apps') || lowerMsg.includes('connect my apps') || lowerMsg.includes('connect with your apps')) {
+      return buildAssistant(
+        "Great! I can start with Google Calendar now and add others later. For this demo, connecting Calendar lets me show, create, and update events. Want to connect now or try the demo mode first?",
+        [
+          { label: 'Connect Google Calendar', type: 'primary' },
+          { label: 'Connect Outlook (demo)', type: 'secondary' },
+          { label: 'Connect WhatsApp (demo)', type: 'secondary' },
+          { label: 'Not now', type: 'secondary' }
+        ],
+        [ 'Show my calendar', 'Create an event for today at 3 PM' ]
+      );
     }
     
     if (lowerMsg.includes('plan family weekend') || lowerMsg.includes('weekend activities')) {
@@ -212,11 +411,7 @@ const FamilyButlerChat = () => {
       );
     }
 
-    if (lowerMsg.includes("show today's optimized view") || lowerMsg.includes('show today')) {
-      setShowCalendar(true);
-      setSelectedDate(new Date());
-      return buildAssistant("Opening today's optimized view.");
-    }
+    // Remove old inline calendar toggle path
     
     if (lowerMsg.includes('optimize my time') || lowerMsg.includes('optimize')) {
       return {
@@ -273,30 +468,74 @@ const FamilyButlerChat = () => {
   };
 
   const generateActionResponse = (action) => {
-    if (action === "Auto-resolve with smart moves") {
-      const { updatedCalendar, summary } = autoResolveConflicts(calendar);
-      setCalendar(updatedCalendar);
+    if (action === 'Connect Google Calendar') {
+      return {
+        id: Date.now(),
+        type: 'assistant',
+        content: isConnectingGoogle ? 'Connecting to Google...' : 'Connecting to Google... Grant access in the popup if prompted.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        actions: [ { label: 'Refresh today\'s events', type: 'primary' } ]
+      };
+    }
+    if (action === 'Connect Outlook (demo)') {
+      setConnectedApps(prev => ({ ...prev, outlookDemo: true }));
+      const content = demoOutlookEvents.length === 0
+        ? 'Demo (Outlook): No events for today.'
+        : `Demo (Outlook) — Today\'s events:\n\n${demoOutlookEvents.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
       return buildAssistant(
-        `Done. I nudged a few events to clear overlaps:\n\n${summary}\n\nI also added 10-min buffers before and after your key meetings.`,
-        undefined,
-        ["Show today's optimized view", "Protect my peak hours", "Plan a surprise for my family"]
+        `Connected Outlook (demo).\n\n${content}`,
+        [ { label: 'Refresh Outlook (demo)', type: 'secondary' } ]
       );
     }
-    if (action === "Show options for each conflict") {
-      const conflicts = findConflicts(calendar);
-      if (conflicts.length === 0) {
-        return buildAssistant("Looks like conflicts are already resolved.", undefined, ["Optimize my time", "Plan weekend activities"]);
-      }
-      const options = conflicts.map((c, i) => `Conflict ${i+1}: Move ${c.b.title} to ${formatTime(shiftTime(c.b.start, 45))} or convert to 20-min standup?`).join('\n');
-      return buildAssistant(`Here are resolution options:\n\n${options}`, [
-        { label: "Apply suggested moves", type: 'primary' },
-        { label: "Convert overlapping to standups", type: 'secondary' }
-      ]);
+    if (action === 'Connect WhatsApp (demo)') {
+      setConnectedApps(prev => ({ ...prev, whatsappDemo: true }));
+      const content = demoWhatsAppMsgs.length === 0
+        ? 'Demo (WhatsApp): No recent messages.'
+        : `Demo (WhatsApp) — Recent messages:\n\n${demoWhatsAppMsgs.map(m => `• ${m.from}: ${m.text}`).join('\n')}`;
+      return buildAssistant(
+        `Connected WhatsApp (demo).\n\n${content}`,
+        [ { label: 'Show WhatsApp (demo) again', type: 'secondary' } ]
+      );
     }
-    if (action === "Apply suggested moves") {
-      const { updatedCalendar } = autoResolveConflicts(calendar);
-      setCalendar(updatedCalendar);
-      return buildAssistant("Applied. Your morning is now clean and focused.", undefined, ["Show today's optimized view", "Plan a surprise for my family"]);
+    if (action === 'Refresh Outlook (demo)') {
+      const content = demoOutlookEvents.length === 0
+        ? 'Demo (Outlook): No events for today.'
+        : `Demo (Outlook) — Today\'s events:\n\n${demoOutlookEvents.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+      return buildAssistant(content);
+    }
+    if (action === 'Show WhatsApp (demo) again') {
+      const content = demoWhatsAppMsgs.length === 0
+        ? 'Demo (WhatsApp): No recent messages.'
+        : `Demo (WhatsApp) — Recent messages:\n\n${demoWhatsAppMsgs.map(m => `• ${m.from}: ${m.text}`).join('\n')}`;
+      return buildAssistant(content);
+    }
+    if (action === 'Not now') {
+      return buildAssistant(
+        'No problem. I\'ll run in demo mode. You can connect later anytime.',
+        [ { label: 'Show my calendar', type: 'primary' }, { label: "Refresh today\'s events", type: 'secondary' } ]
+      );
+    }
+    if (action === "Refresh today's events") {
+      if (!googleToken) {
+        const content = demoEvents.length === 0
+          ? 'Demo: No events for today.'
+          : `Demo — Today\'s events:\n\n${demoEvents.map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+        return buildAssistant(content);
+      }
+      return buildAssistant('Okay, fetching today\'s events...');
+    }
+    if (action === 'Create an event for today at 3 PM') {
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 0, 0).toISOString();
+      const end = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 15, 30, 0).toISOString();
+      if (!googleToken) {
+        const newEvent = { id: `demo-${Date.now()}`, title: 'Focus block', start, end };
+        setDemoEvents(prev => [...prev, newEvent]);
+        const content = `Demo: Event created — Focus block, 3:00–3:30 PM today.\n\nUpdated list:\n\n${[...demoEvents, newEvent].sort((a,b)=> new Date(a.start)-new Date(b.start)).map(e => `• ${formatTime(e.start)} - ${e.title}`).join('\n')}`;
+        return buildAssistant(content);
+      }
+      // Real API path handled in async branch above
+      return buildAssistant('Creating an event at 3:00 PM today...');
     }
     if (action?.startsWith('Plan a date night')) {
       const wifeName = memory.lovedOnes.wife;
@@ -371,72 +610,9 @@ const FamilyButlerChat = () => {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const findConflicts = (events) => {
-    const sorted = [...events].sort((a,b) => new Date(a.start) - new Date(b.start));
-    const conflicts = [];
-    for (let i = 0; i < sorted.length - 1; i++) {
-      const a = sorted[i];
-      for (let j = i + 1; j < sorted.length; j++) {
-        const b = sorted[j];
-        if (new Date(b.start) < new Date(a.end)) {
-          conflicts.push({ a, b });
-        } else {
-          break;
-        }
-      }
-    }
-    return conflicts;
-  };
+  // Note: old local conflict helpers removed in favor of real provider data
 
-  const shiftTime = (iso, minutes) => {
-    const d = new Date(iso);
-    d.setMinutes(d.getMinutes() + minutes);
-    return d.toISOString().slice(0,16);
-  };
-
-  const autoResolveConflicts = (events) => {
-    const conflicts = findConflicts(events);
-    const moves = [];
-    let updated = [...events];
-    conflicts.forEach(({ a, b }) => {
-      const moved = { ...b, start: shiftTime(b.start, 45), end: shiftTime(b.end, 45) };
-      updated = updated.map(e => e.id === b.id ? moved : e);
-      moves.push(`• Moved ${b.title} to ${formatTime(moved.start)}`);
-    });
-    const summary = moves.join('\n');
-    return { updatedCalendar: updated, summary };
-  };
-
-  // Calendar helpers
-  const startOfWeek = (date) => {
-    const d = new Date(date);
-    const day = d.getDay(); // 0 Sun .. 6 Sat
-    const diff = (day + 6) % 7; // make Monday start
-    d.setDate(d.getDate() - diff);
-    d.setHours(0,0,0,0);
-    return d;
-  };
-  const addDays = (date, days) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + days);
-    return d;
-  };
-  const isSameDay = (a, b) => {
-    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-  };
-  const getWeekDates = (anchor) => {
-    const start = startOfWeek(anchor);
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  };
-  const isSameDateISO = (iso, date) => {
-    const d = new Date(iso);
-    return isSameDay(d, date);
-  };
-  const agendaForDay = (events, date) => {
-    return events
-      .filter(ev => isSameDateISO(ev.start, date))
-      .sort((a,b) => new Date(a.start) - new Date(b.start));
-  };
+  // Removed inline calendar UI helpers
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -456,68 +632,21 @@ const FamilyButlerChat = () => {
           <div>
             <h1 className="font-semibold">Family Butler</h1>
             <p className="text-xs opacity-90">Your AI Life Assistant • Online</p>
+            <div className="flex gap-1 mt-1">
+              {connectedApps.google && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded">Google</span>}
+              {connectedApps.outlookDemo && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded">Outlook (demo)</span>}
+              {connectedApps.whatsappDemo && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded">WhatsApp (demo)</span>}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setShowCalendar(prev => !prev)}
-            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded text-xs"
-          >
-            {showCalendar ? 'Chat' : 'Calendar'}
-          </button>
           <MoreVertical size={20} className="opacity-75" />
         </div>
       </div>
 
-      {/* Main Body: Chat or Calendar */}
+      {/* Main Body: Chat */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-        {showCalendar ? (
-          <div>
-            {/* Week strip */}
-            <div className="flex gap-2 mb-4 overflow-x-auto">
-              {getWeekDates(selectedDate).map((d) => (
-                <button
-                  key={d.toDateString()}
-                  onClick={() => setSelectedDate(d)}
-                  className={`px-3 py-2 rounded-lg border ${isSameDay(d, selectedDate) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700'} min-w-[80px]`}
-                >
-                  <div className="text-xs opacity-80">{d.toLocaleDateString([], { weekday: 'short' })}</div>
-                  <div className="text-sm font-semibold">{d.getDate()}</div>
-                </button>
-              ))}
-            </div>
-
-            {/* Day agenda */}
-            <div className="bg-white border rounded-xl shadow-sm">
-              <div className="px-4 py-2 border-b flex items-center justify-between">
-                <div className="font-medium">{selectedDate.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}</div>
-                <div className="flex gap-2">
-                  <button onClick={() => setSelectedDate(addDays(selectedDate, -1))} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200">Prev</button>
-                  <button onClick={() => setSelectedDate(new Date())} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200">Today</button>
-                  <button onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200">Next</button>
-                </div>
-              </div>
-              <div className="p-4">
-                {agendaForDay(calendar, selectedDate).length === 0 ? (
-                  <p className="text-sm text-gray-500">No events for this day.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {agendaForDay(calendar, selectedDate).map(ev => (
-                      <div key={ev.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                        <div className="text-xs text-gray-500 min-w-[90px]">{formatTime(ev.start)} - {formatTime(ev.end)}</div>
-                        <div>
-                          <div className="text-sm font-medium">{ev.title}</div>
-                          {ev.who && <div className="text-xs text-gray-500">{ev.who.join(', ')}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <>
+        <>
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-xs lg:max-w-md ${msg.type === 'user' ? 'order-2' : 'order-1'}`}>
@@ -583,8 +712,7 @@ const FamilyButlerChat = () => {
                 </div>
               </div>
             )}
-          </>
-        )}
+        </>
         <div ref={messagesEndRef} />
       </div>
 
@@ -592,11 +720,11 @@ const FamilyButlerChat = () => {
       <div className="px-4 py-2 bg-white border-t">
         <div className="flex gap-2 overflow-x-auto">
           <button 
-            onClick={() => { setShowCalendar(true); setSelectedDate(new Date()); }}
+            onClick={() => handleSuggestionClick('Show my calendar')}
             className="flex items-center gap-1 px-3 py-2 bg-gray-100 rounded-lg text-sm whitespace-nowrap hover:bg-gray-200 transition-colors"
           >
             <Calendar size={14} />
-            Calendar
+            Show Calendar
           </button>
           <button 
             onClick={() => handleSuggestionClick("What should I focus on today?")}
