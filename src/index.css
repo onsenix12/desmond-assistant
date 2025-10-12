@@ -7,6 +7,167 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  /* Improve touch targets */
+  button, [role="button"], input[type="button"], input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, textarea, select {
+    font-size: 16px;
+  }
+  
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Better text rendering on mobile */
+  body {
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Custom utilities for mobile */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Touch-friendly hover states */
+@media (hover: none) and (pointer: coarse) {
+  button.hover\:bg-gray-100:hover {
+    background-color: transparent;
+  }
+  
+  button.hover\:bg-blue-100:hover {
+    background-color: transparent;
+  }
+  
+  .hover\:text-gray-800:hover {
+    color: inherit;
+  }
+  
+  /* Show dismiss buttons on mobile */
+  .group .opacity-0 {
+    opacity: 1;
+  }
+}
+
+/* Ensure event text colors are properly applied */
+.text-blue-800 {
+  color: #1e40af !important;
+  font-weight: 600 !important;
+}
+
+.text-green-800 {
+  color: #166534 !important;
+  font-weight: 600 !important;
+}
+
+.text-purple-800 {
+  color: #6b21a8 !important;
+  font-weight: 600 !important;
+}
+
+.text-orange-800 {
+  color: #9a3412 !important;
+  font-weight: 600 !important;
+}
+
+/* Ensure event text is visible and readable */
+.text-xs {
+  font-size: 0.75rem !important;
+  line-height: 1rem !important;
+  font-weight: 600 !important;
+}
+
+/* Specific rules for event tiles to ensure text visibility */
+.calendar-event-tile {
+  color: inherit !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ensure better contrast for event text */
+.bg-blue-100 .calendar-event-tile {
+  color: #1e40af !important;
+}
+
+.bg-green-100 .calendar-event-tile {
+  color: #166534 !important;
+}
+
+.bg-purple-100 .calendar-event-tile {
+  color: #6b21a8 !important;
+}
+
+.bg-orange-100 .calendar-event-tile {
+  color: #9a3412 !important;
+}
+
+/* Override any potential text color issues */
+.calendar-event-tile span {
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+
+/* Ensure text is visible on all event tiles */
+.calendar-event-tile * {
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+
+/* Force text visibility with high specificity */
+div.calendar-event-tile {
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+
+div.calendar-event-tile * {
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+
+/* Override any potential text color issues with maximum specificity */
+div.calendar-event-tile span {
+  color: inherit !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Ensure text is visible on all event tiles with maximum specificity */
+div.calendar-event-tile span.hidden {
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+
+div.calendar-event-tile span.sm\\:hidden {
+  color: inherit !important;
+  font-weight: 600 !important;
+}
+
+/* Active states for touch devices */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on UI elements */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 
