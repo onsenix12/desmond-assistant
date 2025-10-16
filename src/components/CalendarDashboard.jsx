@@ -48,6 +48,7 @@ const CalendarDashboard = ({ connectedApps }) => {
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem('tt_tutorial_done') === 'true' ? false : true);
+  const [showWelcome, setShowWelcome] = useState(() => localStorage.getItem('tt_show_welcome') === 'true');
   const [tutorialStep, setTutorialStep] = useState(0);
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -164,6 +165,9 @@ const CalendarDashboard = ({ connectedApps }) => {
     if (tutorialStep + 1 >= tutorialSteps.length) {
       setShowTutorial(false);
       localStorage.setItem('tt_tutorial_done', 'true');
+      // Hide welcome once tutorial is completed
+      localStorage.removeItem('tt_show_welcome');
+      setShowWelcome(false);
     } else {
       setTutorialStep(prev => prev + 1);
     }
@@ -172,6 +176,8 @@ const CalendarDashboard = ({ connectedApps }) => {
   const handleTutorialSkip = () => {
     setShowTutorial(false);
     localStorage.setItem('tt_tutorial_done', 'true');
+    localStorage.removeItem('tt_show_welcome');
+    setShowWelcome(false);
   };
 
   // Listen for header triggers
@@ -1031,6 +1037,35 @@ const CalendarDashboard = ({ connectedApps }) => {
       
       {/* Header */}
       <CalendarHeader connectedCount={connectedCount} />
+
+      {/* Welcome Banner */}
+      {showWelcome && (
+        <div className="max-w-[1800px] mx-auto px-4 sm:px-6 mt-4">
+          <div className="bg-white border border-blue-200 rounded-xl shadow-sm p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="px-2 py-1 rounded-md text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Welcome</div>
+            <div className="flex-1 text-sm text-gray-700">
+              Welcome to Time Tetris! I’ll guide you with a quick tour so you can get the most out of your calendar.
+            </div>
+            <div className="flex gap-2">
+              <button
+                className="px-3 py-1.5 rounded-lg text-white bg-[#119BFE] hover:brightness-95 text-sm font-semibold"
+                onClick={() => {
+                  setTutorialStep(0);
+                  setShowTutorial(true);
+                }}
+              >
+                Start tour
+              </button>
+              <button
+                className="px-3 py-1.5 rounded-lg border-2 border-gray-300 text-gray-700 text-sm font-semibold"
+                onClick={() => { localStorage.removeItem('tt_show_welcome'); setShowWelcome(false); }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success Messages */}
       <SuccessMessages 

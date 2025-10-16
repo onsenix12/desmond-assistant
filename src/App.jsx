@@ -31,6 +31,11 @@ function App() {
     // Save to localStorage
     localStorage.setItem('desmond_setup_complete', 'true');
     localStorage.setItem('desmond_connected_apps', JSON.stringify(connections));
+    // Ensure tutorial starts for new setups and show welcome banner
+    try {
+      localStorage.removeItem('tt_tutorial_done');
+      localStorage.setItem('tt_show_welcome', 'true');
+    } catch {}
     
     // Transition to dashboard
     setAppState('dashboard');
