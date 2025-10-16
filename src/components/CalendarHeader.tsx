@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Bell, User, Calendar as CalendarIcon } from 'lucide-react';
+import { HelpCircle, Calendar as CalendarIcon, Plus } from 'lucide-react';
 import { CalendarHeaderProps } from '../types';
 
 const CalendarHeader: React.FC<CalendarHeaderProps> = ({ connectedCount }) => {
@@ -40,24 +40,32 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({ connectedCount }) => {
           </div>
 
           {/* Right: Actions */}
-          <div className="flex items-center gap-1 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button 
-              className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-              aria-label="Notifications"
+              className="px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-white bg-[#119BFE] hover:brightness-95 font-semibold"
+              aria-label="New event"
+              onClick={(e) => {
+                e.preventDefault();
+                if (typeof window !== 'undefined') {
+                  const ev = new CustomEvent('tt:new-event');
+                  window.dispatchEvent(ev);
+                }
+              }}
             >
-              <Bell size={16} className="text-gray-600 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">New event</span>
+              <span className="sm:hidden flex items-center gap-1"><Plus size={14} /> New</span>
             </button>
             <button 
               className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-              aria-label="Settings"
+              aria-label="Help"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  const ev = new CustomEvent('tt:replay-tutorial');
+                  window.dispatchEvent(ev);
+                }
+              }}
             >
-              <Settings size={16} className="text-gray-600 sm:w-5 sm:h-5" />
-            </button>
-            <button 
-              className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-              aria-label="User profile"
-            >
-              <User size={16} className="text-gray-600 sm:w-5 sm:h-5" />
+              <HelpCircle size={16} className="text-gray-600 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>

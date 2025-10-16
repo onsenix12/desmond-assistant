@@ -141,6 +141,8 @@ export interface DesmondProfile {
 // Component Props Types
 export interface CalendarHeaderProps {
   connectedCount: number;
+  onHelpClick?: () => void;
+  onNewEventClick?: () => void;
 }
 
 export interface SuccessMessagesProps {

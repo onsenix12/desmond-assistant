@@ -1,235 +1,178 @@
 import React, { useState } from 'react';
-import { Calendar, MessageCircle, Mail, FileText, CheckCircle2, Loader2 } from 'lucide-react';
+import { Calendar, MessageCircle, CheckCircle2, Loader2, Sigma } from 'lucide-react';
+
+// Brand palette
+// Yellow: #FFC600, Orange: #FF6B4D, Blue: #119BFE, Green: #28C840
+// Use Blue as dominant; Green only for success; Yellow/Orange as subtle accents
+const MIN_BG = 'bg-gradient-to-br from-white to-[#119BFE0D]';
+const CARD = 'bg-white border border-gray-200 rounded-2xl shadow-xl';
+const PRIMARY_BTN = 'bg-[#119BFE] hover:brightness-95 text-white';
+const GHOST_BTN = 'border-2 border-gray-300 text-gray-700 hover:bg-gray-50';
 
 const ConnectionFlow = ({ onComplete }) => {
+  const [step, setStep] = useState(0); // 0: welcome, 1: calendar, 2: whatsapp, 3: done
   const [connections, setConnections] = useState({
     google: { status: 'not_connected', loading: false },
     whatsapp: { status: 'not_connected', loading: false },
-    outlook: { status: 'not_connected', loading: false },
-    notes: { status: 'not_connected', loading: false },
   });
 
-  const [showContinue, setShowContinue] = useState(false);
-
-  const apps = [
-    {
-      id: 'google',
-      name: 'Google Calendar',
-      icon: Calendar,
-      color: 'blue',
-      description: 'Work meetings, family events, study schedule',
-      benefit: 'See all your commitments in one place',
-    },
-    {
-      id: 'whatsapp',
-      name: 'WhatsApp',
-      icon: MessageCircle,
-      color: 'green',
-      description: 'Family coordination, group plans',
-      benefit: 'Auto-detect scheduling requests from family chat',
-    },
-    {
-      id: 'outlook',
-      name: 'Outlook Calendar',
-      icon: Mail,
-      color: 'purple',
-      description: 'Work emails, SAF official calendar',
-      benefit: 'Sync work commitments automatically',
-    },
-    {
-      id: 'notes',
-      name: 'Upload Notes',
-      icon: FileText,
-      color: 'orange',
-      description: 'Physical diary, to-do lists, handwritten tasks',
-      benefit: 'Digitize your offline planning',
-    },
-  ];
-
   const handleConnect = (appId) => {
-    // Set loading state
     setConnections(prev => ({
       ...prev,
       [appId]: { status: 'connecting', loading: true }
     }));
 
-    // Simulate connection process
     setTimeout(() => {
       setConnections(prev => ({
         ...prev,
         [appId]: { status: 'connected', loading: false }
       }));
 
-      // Check if at least one app is connected to show continue button
-      const anyConnected = Object.values({
-        ...connections,
-        [appId]: { status: 'connected', loading: false }
-      }).some(conn => conn.status === 'connected');
-
-      if (anyConnected) {
-        setShowContinue(true);
-      }
-    }, 2000);
+      // Advance automatically when a step's connection succeeds
+      setTimeout(() => setStep(s => Math.min(s + 1, 3)), 400);
+    }, 1200);
   };
 
-  const getColorClasses = (color) => {
-    const colors = {
-      blue: 'bg-blue-600 hover:bg-blue-700 text-white',
-      green: 'bg-green-600 hover:bg-green-700 text-white',
-      purple: 'bg-purple-600 hover:bg-purple-700 text-white',
-      orange: 'bg-orange-600 hover:bg-orange-700 text-white',
-    };
-    return colors[color] || 'bg-gray-600 hover:bg-gray-700 text-white';
-  };
+  const calendar = connections.google;
+  const whatsapp = connections.whatsapp;
 
-  const getIconColorClasses = (color) => {
-    const colors = {
-      blue: 'bg-blue-100 text-blue-600',
-      green: 'bg-green-100 text-green-600',
-      purple: 'bg-purple-100 text-purple-600',
-      orange: 'bg-orange-100 text-orange-600',
-    };
-    return colors[color] || 'bg-gray-100 text-gray-600';
-  };
+  const Header = ({ title, subtitle }) => (
+    <div className="px-6 sm:px-10 pt-8 pb-4 text-center">
+      <div className="mx-auto mb-4 w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#119BFE] text-white flex items-center justify-center shadow-lg">
+        {/* Math icon vibe */}
+        <Sigma className="w-6 h-6 sm:w-7 sm:h-7" />
+      </div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{title}</h1>
+      {subtitle && (
+        <p className="mt-2 text-sm sm:text-base text-gray-600">{subtitle}</p>
+      )}
+    </div>
+  );
 
-  const connectedCount = Object.values(connections).filter(c => c.status === 'connected').length;
+  const Footer = ({ onSkip, onNext, nextLabel = 'Next' }) => (
+    <div className="px-6 sm:px-10 pb-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+      {onSkip && (
+        <button onClick={onSkip} className={`px-5 py-2 rounded-lg font-semibold ${GHOST_BTN}`}>
+          Skip
+        </button>
+      )}
+      {onNext && (
+        <button onClick={onNext} className={`px-6 py-2 rounded-lg font-semibold ${PRIMARY_BTN}`}>
+          {nextLabel}
+        </button>
+      )}
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 px-4 sm:px-8 py-8 sm:py-12 text-white">
-          <div className="max-w-2xl mx-auto text-center">
-            <div className="mb-3 sm:mb-4">
-              <div className="inline-block p-3 sm:p-4 bg-white/20 rounded-full">
-                <Calendar size={32} className="sm:w-12 sm:h-12" />
-              </div>
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-bold mb-3 sm:mb-4">
-              Welcome to Time Tetris
-            </h1>
-            <p className="text-base sm:text-xl text-blue-100 mb-2">
-              Connect your apps to unlock smart scheduling, conflict prevention, and stress-free planning
-            </p>
-            <p className="text-xs sm:text-sm text-blue-200">
-              Connect at least one app to get started • All data stored locally
-            </p>
-          </div>
-        </div>
-
-        {/* Connection Cards */}
-        <div className="px-4 sm:px-8 py-6 sm:py-10">
-          {connectedCount > 0 && (
-            <div className="mb-6 sm:mb-8 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center gap-2 sm:gap-3">
-                <CheckCircle2 size={20} className="text-green-600 sm:w-6 sm:h-6" />
-                <div>
-                  <p className="font-semibold text-green-800 text-sm sm:text-base">
-                    Great! {connectedCount} app{connectedCount > 1 ? 's' : ''} connected
-                  </p>
-                  <p className="text-xs sm:text-sm text-green-700">
-                    Your calendar is getting smarter. Connect more for better insights.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-            {apps.map((app) => {
-              const Icon = app.icon;
-              const connection = connections[app.id];
-              const isConnected = connection.status === 'connected';
-              const isConnecting = connection.loading;
-
-              return (
-                <div
-                  key={app.id}
-                  className={`border-2 rounded-xl p-4 sm:p-6 transition-all ${
-                    isConnected
-                      ? 'border-green-400 bg-green-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300 active:border-gray-400'
-                  }`}
-                >
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className={`p-2 sm:p-3 rounded-lg ${getIconColorClasses(app.color)}`}>
-                      <Icon size={20} className="sm:w-7 sm:h-7" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-base sm:text-lg mb-1">{app.name}</h3>
-                      <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3">
-                        {app.description}
-                      </p>
-                      <div className="flex items-start gap-2 mb-3 sm:mb-4">
-                        <span className="text-xs mt-0.5">💡</span>
-                        <p className="text-xs text-gray-700 italic">
-                          {app.benefit}
-                        </p>
-                      </div>
-                      
-                      {isConnected ? (
-                        <div className="flex items-center gap-2 text-green-700">
-                          <CheckCircle2 size={16} className="sm:w-5 sm:h-5" />
-                          <span className="font-semibold text-sm sm:text-base">Connected</span>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleConnect(app.id)}
-                          disabled={isConnecting}
-                          className={`px-3 sm:px-4 py-2 rounded-lg font-semibold transition-all touch-manipulation text-sm ${
-                            isConnecting
-                              ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                              : getColorClasses(app.color)
-                          }`}
-                        >
-                          {isConnecting ? (
-                            <span className="flex items-center gap-2">
-                              <Loader2 size={14} className="animate-spin sm:w-4 sm:h-4" />
-                              <span className="hidden sm:inline">Connecting...</span>
-                              <span className="sm:hidden">...</span>
-                            </span>
-                          ) : (
-                            <>
-                              <span className="hidden sm:inline">Connect {app.name}</span>
-                              <span className="sm:hidden">Connect</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
+    <div className={`min-h-screen ${MIN_BG} flex items-center justify-center p-4`}>
+      <div className={`w-full max-w-xl ${CARD} overflow-hidden`}>
+        {/* Step views */}
+        {step === 0 && (
+          <>
+            <Header 
+              title="Welcome to Time Tetris"
+              subtitle="A calmer way to plan. We’ll connect things one step at a time."
+            />
+            <div className="px-6 sm:px-10 pb-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-xl">
+                  <div className="w-10 h-10 rounded-lg bg-[#FFC6001A] text-[#119BFE] flex items-center justify-center">
+                    <Calendar className="w-5 h-5" />
                   </div>
+                  <span className="text-sm font-medium text-gray-800">Calendar</span>
                 </div>
-              );
-            })}
-          </div>
+                <div className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-xl">
+                  <div className="w-10 h-10 rounded-lg bg-[#FF6B4D1A] text-[#119BFE] flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-800">WhatsApp</span>
+                </div>
+              </div>
+            </div>
+            <Footer onNext={() => setStep(1)} nextLabel="Get started" />
+          </>
+        )}
 
-          {/* Skip / Continue Buttons */}
-          <div className="mt-6 sm:mt-10 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-            <button
-              onClick={() => onComplete(connections)}
-              className="px-4 sm:px-6 py-2 sm:py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 active:bg-gray-100 transition-all touch-manipulation text-sm sm:text-base"
-            >
-              Skip for now
-            </button>
-            
-            {showContinue && (
-              <button
-                onClick={() => onComplete(connections)}
-                className="px-6 sm:px-8 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-800 active:from-blue-800 active:to-indigo-900 transition-all shadow-lg touch-manipulation text-sm sm:text-base"
-              >
-                <span className="hidden sm:inline">Continue to Dashboard →</span>
-                <span className="sm:hidden">Continue →</span>
-              </button>
-            )}
-          </div>
+        {step === 1 && (
+          <>
+            <Header 
+              title="Connect your Calendar"
+              subtitle="So we can see commitments and prevent conflicts automatically."
+            />
+            <div className="px-6 sm:px-10 pb-2">
+              <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-800">Google Calendar</p>
+                  <p className="text-sm text-gray-600">Work meetings, family events, study blocks</p>
+                </div>
+                {calendar.status === 'connected' ? (
+                  <span className="flex items-center gap-1 text-green-600 text-sm font-semibold">
+                    <CheckCircle2 className="w-4 h-4" /> Connected
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleConnect('google')}
+                    disabled={calendar.loading}
+                    className={`px-4 py-2 rounded-lg font-semibold ${calendar.loading ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : PRIMARY_BTN}`}
+                  >
+                    {calendar.loading ? (
+                      <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</span>
+                    ) : (
+                      'Connect'
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+            <Footer onSkip={() => setStep(2)} onNext={() => setStep(2)} nextLabel={calendar.status === 'connected' ? 'Continue' : 'Skip for now'} />
+          </>
+        )}
 
-          {/* Privacy Note */}
-          <div className="mt-6 sm:mt-8 text-center">
-            <p className="text-xs text-gray-500">
-              🔒 All data stored locally in your browser. No external servers. Disconnect anytime.
-            </p>
-          </div>
-        </div>
+        {step === 2 && (
+          <>
+            <Header 
+              title="Connect WhatsApp"
+              subtitle="We’ll spot planning messages and turn them into options."
+            />
+            <div className="px-6 sm:px-10 pb-2">
+              <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl">
+                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-800">WhatsApp</p>
+                  <p className="text-sm text-gray-600">Detect scheduling in family chats</p>
+                </div>
+                {whatsapp.status === 'connected' ? (
+                  <span className="flex items-center gap-1 text-green-600 text-sm font-semibold">
+                    <CheckCircle2 className="w-4 h-4" /> Connected
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => handleConnect('whatsapp')}
+                    disabled={whatsapp.loading}
+                    className={`px-4 py-2 rounded-lg font-semibold ${whatsapp.loading ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : PRIMARY_BTN}`}
+                  >
+                    {whatsapp.loading ? (
+                      <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</span>
+                    ) : (
+                      'Connect'
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+            <Footer 
+              onSkip={() => onComplete(connections)} 
+              onNext={() => onComplete(connections)} 
+              nextLabel={whatsapp.status === 'connected' ? 'Finish' : 'Finish without WhatsApp'} 
+            />
+          </>
+        )}
       </div>
     </div>
   );

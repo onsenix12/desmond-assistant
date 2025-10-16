@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 
 const MobileNavigation = ({ showMobileChat, setShowMobileChat }) => {
   return (
@@ -26,13 +26,7 @@ const MobileNavigation = ({ showMobileChat, setShowMobileChat }) => {
             Ask Anything
           </span>
         </button>
-        <button 
-          className="flex flex-col items-center gap-1 p-2 touch-manipulation"
-          aria-label="Settings"
-        >
-          <Settings size={20} className="text-gray-600" />
-          <span className="text-xs font-medium text-gray-600">Settings</span>
-        </button>
+        {/* Removed Settings to simplify navigation */}
       </div>
     </div>
   );

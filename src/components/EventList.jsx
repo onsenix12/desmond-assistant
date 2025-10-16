@@ -10,7 +10,7 @@ const EventList = ({
   if (!selectedDate) return null;
 
   return (
-    <div className="lg:hidden mb-4 bg-white rounded-xl shadow-lg p-4">
+    <div className="lg:hidden mb-4 bg-white rounded-xl shadow-lg p-4" data-testid="day-event-list">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-bold text-gray-800">
           {formatDate(new Date(selectedDate.year, selectedDate.month, selectedDate.day))}

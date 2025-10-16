@@ -48,7 +48,7 @@ const CalendarGrid = ({
   const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6">
+    <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6" data-testid="calendar-grid">
       {/* Month/Year Header */}
       <div className="flex items-center justify-between mb-3 sm:mb-6">
         <div className="flex items-center gap-2 sm:gap-3">

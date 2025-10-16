@@ -5,6 +5,8 @@ import CalendarHeader from './CalendarHeader';
 import SuccessMessages from './SuccessMessages';
 import MobileChat from './MobileChat';
 import MobileNavigation from './MobileNavigation';
+import TutorialCoachmarks from './TutorialCoachmarks';
+import MobileBottomSheet from './MobileBottomSheet';
 import EventList from './EventList';
 import SelectedDayDetail from './SelectedDayDetail';
 import CalendarErrorBoundary from './CalendarErrorBoundary';
@@ -43,6 +45,17 @@ const CalendarDashboard = ({ connectedApps }) => {
     }
   ]);
   const [chatInput, setChatInput] = useState('');
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem('tt_tutorial_done') === 'true' ? false : true);
+  const [tutorialStep, setTutorialStep] = useState(0);
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    date: '', // YYYY-MM-DD
+    startTime: '', // HH:MM
+    endTime: '', // HH:MM
+    type: 'personal'
+  });
 
   // Count connected apps
   const connectedCount = Object.values(connectedApps || {}).filter(
@@ -66,7 +79,76 @@ const CalendarDashboard = ({ connectedApps }) => {
 
   const handleDateSelect = (date) => {
     setSelectedDate(date);
+    setSheetOpen(true); // open sheet on mobile when a date is chosen
   };
+
+  const handleOpenAdd = () => {
+    // Prefill with selected date if available
+    const dateStr = selectedDate
+      ? `${selectedDate.year}-${String(selectedDate.month + 1).padStart(2, '0')}-${String(selectedDate.day).padStart(2, '0')}`
+      : '';
+    setNewEvent({ title: '', date: dateStr, startTime: '', endTime: '', type: 'personal' });
+    setShowAddEvent(true);
+  };
+
+  const handleCreateEvent = (e) => {
+    e.preventDefault();
+    if (!newEvent.title || !newEvent.date || !newEvent.startTime || !newEvent.endTime) {
+      return;
+    }
+    const startISO = `${newEvent.date}T${newEvent.startTime}:00`;
+    const endISO = `${newEvent.date}T${newEvent.endTime}:00`;
+    const created = {
+      id: `manual_${Date.now()}`,
+      title: newEvent.title,
+      start: startISO,
+      end: endISO,
+      type: newEvent.type,
+      createdBy: 'manual'
+    };
+    setEvents(prev => [...prev, created]);
+    setShowAddEvent(false);
+  };
+
+  const tutorialSteps = [
+    { title: 'Calendar header', body: 'Use arrows to change months. Tap “New event” to add.', selector: '[aria-label="New event"]', placement: 'bottom' },
+    { title: 'Calendar grid', body: 'Tap any day to see its events.', selector: '[data-testid="calendar-grid"]', placement: 'top' },
+    { title: 'Day events', body: 'Tap an event to edit or delete.', selector: '[data-testid="day-event-list"]', placement: 'top' },
+    { title: 'Conflicts', body: 'Fix with one tap. More options if needed.', selector: '[data-testid="conflicts-panel"]', placement: 'left' },
+    { title: 'Smart actions', body: 'Apply or dismiss suggestions.', selector: '[data-testid="suggestions-panel"]', placement: 'left' },
+    { title: 'Add event', body: 'Create an event without external calendars.', selector: '[aria-label="New event"]', placement: 'bottom' },
+    { title: 'Ask', body: 'Ask for quick help or actions.', selector: '[aria-label="Ask Anything"]', placement: 'top' }
+  ];
+
+  const handleTutorialNext = () => {
+    if (tutorialStep + 1 >= tutorialSteps.length) {
+      setShowTutorial(false);
+      localStorage.setItem('tt_tutorial_done', 'true');
+    } else {
+      setTutorialStep(prev => prev + 1);
+    }
+  };
+
+  const handleTutorialSkip = () => {
+    setShowTutorial(false);
+    localStorage.setItem('tt_tutorial_done', 'true');
+  };
+
+  // Listen for header triggers
+  React.useEffect(() => {
+    const replay = () => {
+      setTutorialStep(0);
+      setShowTutorial(true);
+      localStorage.removeItem('tt_tutorial_done');
+    };
+    const newEvent = () => handleOpenAdd();
+    window.addEventListener('tt:replay-tutorial', replay);
+    window.addEventListener('tt:new-event', newEvent);
+    return () => {
+      window.removeEventListener('tt:replay-tutorial', replay);
+      window.removeEventListener('tt:new-event', newEvent);
+    };
+  }, [selectedDate]);
 
   // Handle conflict resolution logic
   const handleConflictResolution = (conflict, resolution) => {
@@ -946,7 +1028,7 @@ const CalendarDashboard = ({ connectedApps }) => {
               <IntelligencePanel
                 conflicts={conflicts.filter(conflict => !resolvedConflicts.has(conflict.id))}
                 suggestions={smartSuggestions.filter(s => !appliedSuggestions.has(s.id))}
-                patterns={patterns}
+                patterns={[]}
                 appliedPatterns={appliedPatterns}
                 onResolveConflict={handleResolveConflict}
                 onApplySuggestion={handleApplySuggestion}
@@ -957,6 +1039,91 @@ const CalendarDashboard = ({ connectedApps }) => {
           </div>
         </div>
       </div>
+
+      {/* Add Event Floating Button */}
+      <button
+        onClick={handleOpenAdd}
+        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 px-4 py-3 rounded-full shadow-xl text-white bg-[#119BFE] hover:brightness-95 focus:outline-none"
+        aria-label="Add event"
+      >
+        + Add Event
+      </button>
+
+      {/* Add Event Modal */}
+      {showAddEvent && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900">Create Event</h3>
+              <button onClick={() => setShowAddEvent(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            <form onSubmit={handleCreateEvent} className="px-5 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input
+                  type="text"
+                  value={newEvent.title}
+                  onChange={(e) => setNewEvent(ev => ({ ...ev, title: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#119BFE]"
+                  placeholder="e.g., Family Dinner"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={newEvent.date}
+                    onChange={(e) => setNewEvent(ev => ({ ...ev, date: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#119BFE]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                  <select
+                    value={newEvent.type}
+                    onChange={(e) => setNewEvent(ev => ({ ...ev, type: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#119BFE]"
+                  >
+                    <option value="personal">Personal</option>
+                    <option value="family">Family</option>
+                    <option value="work">Work</option>
+                    <option value="study">Study</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Start</label>
+                  <input
+                    type="time"
+                    value={newEvent.startTime}
+                    onChange={(e) => setNewEvent(ev => ({ ...ev, startTime: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#119BFE]"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">End</label>
+                  <input
+                    type="time"
+                    value={newEvent.endTime}
+                    onChange={(e) => setNewEvent(ev => ({ ...ev, endTime: e.target.value }))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#119BFE]"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowAddEvent(false)} className="px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="px-5 py-2 rounded-lg text-white bg-[#119BFE] hover:brightness-95">Create</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Chat Overlay */}
       <MobileChat 
@@ -969,11 +1136,42 @@ const CalendarDashboard = ({ connectedApps }) => {
         handleSuggestionClick={handleSuggestionClick}
       />
 
+      {/* Mobile Bottom Sheet for day details */}
+      <MobileBottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        header={selectedDate ? `${selectedDate.year}-${String(selectedDate.month + 1).padStart(2,'0')}-${String(selectedDate.day).padStart(2,'0')}` : 'Day details'}
+      >
+        <div className="px-4 pb-6">
+          <EventList 
+            selectedDate={selectedDate}
+            selectedDayEvents={selectedDayEvents}
+            setSelectedDate={setSelectedDate}
+            shouldEventShowStrikethrough={shouldEventShowStrikethrough}
+          />
+          <button
+            onClick={() => { setShowAddEvent(true); setSheetOpen(false); }}
+            className="mt-2 w-full px-4 py-2 rounded-lg text-white bg-[#119BFE] hover:brightness-95"
+          >
+            New event
+          </button>
+        </div>
+      </MobileBottomSheet>
+
       {/* Mobile Bottom Navigation */}
       <MobileNavigation 
         showMobileChat={showMobileChat}
         setShowMobileChat={setShowMobileChat}
       />
+
+      {showTutorial && (
+        <TutorialCoachmarks
+          stepIndex={tutorialStep}
+          steps={tutorialSteps}
+          onNext={handleTutorialNext}
+          onSkip={handleTutorialSkip}
+        />
+      )}
     </div>
   );
 };
