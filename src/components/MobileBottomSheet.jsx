@@ -13,7 +13,7 @@ const MobileBottomSheet = ({ open, onClose, header, children }) => {
       )}
 
       {open && (
-        <div className="lg:hidden fixed inset-0 z-40">
+        <div className="lg:hidden fixed inset-0 z-40" data-testid="mobile-sheet">
           <div className="absolute inset-0 bg-black/30" onClick={onClose} />
           <div className="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-auto">
             <div className="flex items-center justify-center py-2">

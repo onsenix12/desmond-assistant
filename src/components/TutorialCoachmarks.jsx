@@ -16,6 +16,13 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
   }, [step.selector]);
 
   React.useEffect(() => {
+    // Scroll target into view on mobile, then measure
+    if (step.selector) {
+      const el = document.querySelector(step.selector);
+      if (el && el.scrollIntoView) {
+        try { el.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' }); } catch {}
+      }
+    }
     measure();
     window.addEventListener('resize', measure);
     window.addEventListener('scroll', measure, true);

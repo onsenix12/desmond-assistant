@@ -111,13 +111,10 @@ const CalendarDashboard = ({ connectedApps }) => {
   };
 
   const tutorialSteps = [
-    { title: 'Calendar header', body: 'Use arrows to change months. Tap “New event” to add.', selector: '[aria-label="New event"]', placement: 'bottom' },
-    { title: 'Calendar grid', body: 'Tap any day to see its events.', selector: '[data-testid="calendar-grid"]', placement: 'top' },
-    { title: 'Day events', body: 'Tap an event to edit or delete.', selector: '[data-testid="day-event-list"]', placement: 'top' },
-    { title: 'Conflicts', body: 'Fix with one tap. More options if needed.', selector: '[data-testid="conflicts-panel"]', placement: 'left' },
-    { title: 'Smart actions', body: 'Apply or dismiss suggestions.', selector: '[data-testid="suggestions-panel"]', placement: 'left' },
-    { title: 'Add event', body: 'Create an event without external calendars.', selector: '[aria-label="New event"]', placement: 'bottom' },
-    { title: 'Ask', body: 'Ask for quick help or actions.', selector: '[aria-label="Ask Anything"]', placement: 'top' }
+    { key: 'new', title: 'New event', body: 'Add an event here.', selector: '[aria-label="New event"]', placement: 'bottom' },
+    { key: 'grid', title: 'Pick a day', body: 'Tap any date.', selector: '[data-testid="calendar-grid"]', placement: 'top' },
+    { key: 'sheet', title: 'Day details', body: 'Edit or add items.', selector: '[data-testid="mobile-sheet"]', placement: 'top' },
+    { key: 'conflict', title: 'Conflicts', body: 'Fix with one tap.', selector: '[data-testid="conflicts-panel"]', placement: 'left' }
   ];
 
   const handleTutorialNext = () => {
@@ -149,6 +146,17 @@ const CalendarDashboard = ({ connectedApps }) => {
       window.removeEventListener('tt:new-event', newEvent);
     };
   }, [selectedDate]);
+
+  // Control bottom sheet during tutorial so targets are visible
+  React.useEffect(() => {
+    const current = tutorialSteps[tutorialStep];
+    if (!showTutorial || !current) return;
+    if (current.key === 'sheet') {
+      setSheetOpen(true);
+    } else {
+      setSheetOpen(false);
+    }
+  }, [showTutorial, tutorialStep]);
 
   // Handle conflict resolution logic
   const handleConflictResolution = (conflict, resolution) => {
