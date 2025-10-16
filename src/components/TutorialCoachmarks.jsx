@@ -40,7 +40,6 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
             inline: 'center' 
           }); 
         } catch (e) {
-          // Fallback for browsers that don't support scrollIntoView options
           try { el.scrollIntoView(); } catch {}
         }
       }
@@ -49,48 +48,57 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     // Initial measure on next frame to avoid layout thrash
     const rafId = requestAnimationFrame(measure);
 
-    // Throttled measure for scroll events to avoid jumpiness
-    let scrollRafId = null;
+    // AGGRESSIVE FIX: Only update after scrolling STOPS
+    let scrollTimeout = null;
     let isScrolling = false;
 
-    const throttledMeasure = () => {
-      if (isScrolling) return;
+    const handleScroll = () => {
       isScrolling = true;
-      if (scrollRafId) cancelAnimationFrame(scrollRafId);
-      scrollRafId = requestAnimationFrame(() => {
-        measure();
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+      scrollTimeout = setTimeout(() => {
         isScrolling = false;
-        scrollRafId = null;
-      });
+        measure();
+      }, 150);
     };
 
-    // Window events with passive listeners to improve performance
-    const handleResize = () => measure();
-    const handleScroll = () => throttledMeasure();
+    // Resize updates immediately (not during scroll)
+    const handleResize = () => {
+      if (!isScrolling) {
+        measure();
+      }
+    };
     
     window.addEventListener('resize', handleResize, { passive: true });
     window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
 
-    // Visual viewport events (mobile address bar, zoom, etc.)
+    // Visual viewport events
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     if (vv) {
       vv.addEventListener('resize', handleResize, { passive: true });
       vv.addEventListener('scroll', handleScroll, { passive: true });
     }
 
-    // Observe element size/position changes
+    // Observe element size/position changes (but not during scroll)
     let ro = null;
     if (step.selector) {
       const el = document.querySelector(step.selector);
       if (el && typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(() => measure());
+        ro = new ResizeObserver(() => {
+          if (!isScrolling) {
+            measure();
+          }
+        });
         try { ro.observe(el); } catch {}
       }
     }
 
     return () => {
       cancelAnimationFrame(rafId);
-      if (scrollRafId) cancelAnimationFrame(scrollRafId);
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll, true);
       if (vv) {
@@ -98,7 +106,8 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         vv.removeEventListener('scroll', handleScroll);
       }
       if (ro) {
-        try { ro.disconnect(); } catch {}}
+        try { ro.disconnect(); } catch {}
+      }
     };
   }, [measure, step.selector]);
 
