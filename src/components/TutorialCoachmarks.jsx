@@ -5,7 +5,6 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
   const step = steps[Math.min(stepIndex, steps.length - 1)];
 
   const [rect, setRect] = React.useState(null);
-  const [cardSize, setCardSize] = React.useState({ width: 0, height: 0 });
   const cardRef = React.useRef(null);
 
   const measure = React.useCallback(() => {
@@ -34,9 +33,10 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     if (step.selector) {
       const el = document.querySelector(step.selector);
       if (el && el.scrollIntoView) {
-        try {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        try { 
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }); 
         } catch (e) {
+          // Fallback for browsers that don't support scrollIntoView options
           try { el.scrollIntoView(); } catch {}
         }
       }
@@ -45,15 +45,18 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     // Initial measure on next frame to avoid layout thrash
     const rafId = requestAnimationFrame(measure);
 
-    // Window events
-    window.addEventListener('resize', measure, { passive: true });
-    window.addEventListener('scroll', measure, { capture: true, passive: true });
+    // Window events with passive listeners to improve performance
+    const handleResize = () => measure();
+    const handleScroll = () => measure();
+    
+    window.addEventListener('resize', handleResize, { passive: true });
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
 
     // Visual viewport events (mobile address bar, zoom, etc.)
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     if (vv) {
-      vv.addEventListener('resize', measure, { passive: true });
-      vv.addEventListener('scroll', measure, { passive: true });
+      vv.addEventListener('resize', handleResize, { passive: true });
+      vv.addEventListener('scroll', handleScroll, { passive: true });
     }
 
     // Observe element size/position changes
@@ -68,11 +71,11 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
 
     return () => {
       cancelAnimationFrame(rafId);
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('scroll', measure, true);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
       if (vv) {
-        vv.removeEventListener('resize', measure);
-        vv.removeEventListener('scroll', measure);
+        vv.removeEventListener('resize', handleResize);
+        vv.removeEventListener('scroll', handleScroll);
       }
       if (ro) {
         try { ro.disconnect(); } catch {}
@@ -80,103 +83,276 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     };
   }, [measure, step.selector]);
 
-  // Measure card size whenever it renders or content changes
-  React.useLayoutEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    const update = () => {
-      const r = el.getBoundingClientRect();
-      setCardSize({ width: r.width, height: r.height });
-    };
-    update();
-    let ro = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      ro = new ResizeObserver(update);
-      try { ro.observe(el); } catch {}
-    }
-    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
-    if (vv) {
-      vv.addEventListener('resize', update, { passive: true });
-      vv.addEventListener('scroll', update, { passive: true });
-    }
-    return () => {
-      if (ro) try { ro.disconnect(); } catch {}
-      if (vv) {
-        vv.removeEventListener('resize', update);
-        vv.removeEventListener('scroll', update);
-      }
-    };
-  }, [stepIndex]);
-
   const placement = step.placement || 'bottom';
   const offset = 12;
 
+  // IMPROVED: Calculate card position with viewport boundary checking
   const cardPos = () => {
-    if (!rect) return { style: { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }, effPlacement: placement };
-
+    if (!rect) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    
+    // Get viewport dimensions
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     const viewportWidth = vv ? vv.width : window.innerWidth;
     const viewportHeight = vv ? vv.height : window.innerHeight;
-    const padding = 12;
+    
+    // Card dimensions (approximate - will be refined after render)
+    const cardWidth = Math.min(viewportWidth * 0.9, 360);
+    const cardHeight = 200; // Approximate height
+    const padding = 16; // Safe padding from edges
 
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-
-    let top; let left; let transform; let effPlacement = placement;
-
-    // Base positions by requested placement
-    if (placement === 'top') {
-      top = rect.top - offset; left = centerX; transform = 'translate(-50%, -100%)';
-    } else if (placement === 'left') {
-      top = centerY; left = rect.left - offset; transform = 'translate(-100%, -50%)';
-    } else if (placement === 'right') {
-      top = centerY; left = rect.left + rect.width + offset; transform = 'translate(0,-50%)';
-    } else { // bottom
-      top = rect.top + rect.height + offset; left = centerX; transform = 'translate(-50%, 0)';
+    
+    let top, left, transform;
+    
+    switch (placement) {
+      case 'top':
+        top = rect.top - offset;
+        left = centerX;
+        transform = 'translate(-50%, -100%)';
+        
+        // Check if card goes above viewport
+        if (top - cardHeight < padding) {
+          // Flip to bottom
+          top = rect.top + rect.height + offset;
+          transform = 'translate(-50%, 0)';
+        }
+        break;
+        
+      case 'bottom':
+        top = rect.top + rect.height + offset;
+        left = centerX;
+        transform = 'translate(-50%, 0)';
+        
+        // Check if card goes below viewport
+        if (top + cardHeight > viewportHeight - padding) {
+          // Flip to top
+          top = rect.top - offset;
+          transform = 'translate(-50%, -100%)';
+        }
+        break;
+        
+      case 'left':
+        top = centerY;
+        left = rect.left - offset;
+        transform = 'translate(-100%, -50%)';
+        
+        // Check if card goes past left edge
+        if (left - cardWidth < padding) {
+          // Flip to right
+          left = rect.left + rect.width + offset;
+          transform = 'translate(0, -50%)';
+        }
+        break;
+        
+      case 'right':
+        top = centerY;
+        left = rect.left + rect.width + offset;
+        transform = 'translate(0, -50%)';
+        
+        // Check if card goes past right edge
+        if (left + cardWidth > viewportWidth - padding) {
+          // Flip to left
+          left = rect.left - offset;
+          transform = 'translate(-100%, -50%)';
+        }
+        break;
+        
+      default:
+        top = rect.top + rect.height + offset;
+        left = centerX;
+        transform = 'translate(-50%, 0)';
     }
-
-    // Smart flip to keep inside viewport based on current card size
-    const halfCardW = cardSize.width / 2;
-    const cardH = cardSize.height;
-
-    if (placement === 'top') {
-      if (top - cardH < padding) { // flip to bottom
-        top = rect.top + rect.height + offset; transform = 'translate(-50%, 0)'; effPlacement = 'bottom';
-      }
-    } else if (placement === 'bottom') {
-      if (top + cardH > viewportHeight - padding) { // flip to top
-        top = rect.top - offset; transform = 'translate(-50%, -100%)'; effPlacement = 'top';
-      }
-    } else if (placement === 'left') {
-      if (left - cardSize.width < padding) { // flip to right
-        left = rect.left + rect.width + offset; transform = 'translate(0,-50%)'; effPlacement = 'right';
-      }
-    } else if (placement === 'right') {
-      if (left + cardSize.width > viewportWidth - padding) { // flip to left
-        left = rect.left - offset; transform = 'translate(-100%, -50%)'; effPlacement = 'left';
+    
+    // Final boundary check for horizontal position
+    const halfCardWidth = cardWidth / 2;
+    if (transform.includes('-50%')) {
+      // Centered horizontally
+      if (left - halfCardWidth < padding) {
+        left = halfCardWidth + padding;
+      } else if (left + halfCardWidth > viewportWidth - padding) {
+        left = viewportWidth - halfCardWidth - padding;
       }
     }
-
-    // Horizontal centering protection when using translateX(-50%)
-    if (transform.includes('translate(-50%')) {
-      if (left - halfCardW < padding) left = halfCardW + padding;
-      if (left + halfCardW > viewportWidth - padding) left = viewportWidth - halfCardW - padding;
-    }
-
-    // Vertical centering protection when using translateY(-50%)
-    if (transform.includes(', -50%)') || transform.includes(',-50%)')) {
-      const halfCardH = cardH / 2;
-      if (top - halfCardH < padding) top = halfCardH + padding;
-      if (top + halfCardH > viewportHeight - padding) top = viewportHeight - halfCardH - padding;
-    }
-
-    return { style: { top, left, transform }, effPlacement };
+    
+    return { 
+      top: `${top}px`, 
+      left: `${left}px`, 
+      transform,
+      maxWidth: `${cardWidth}px`
+    };
   };
 
-  const { style: computedCardStyle, effPlacement } = cardPos();
+  // IMPROVED: Calculate pointer position with same boundary logic
+  const pointerPos = () => {
+    if (!rect) return null;
+    
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    
+    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
+    const viewportWidth = vv ? vv.width : window.innerWidth;
+    const viewportHeight = vv ? vv.height : window.innerHeight;
+    const cardWidth = Math.min(viewportWidth * 0.9, 360);
+    const cardHeight = 200;
+    const padding = 16;
+    
+    let style = {};
+    
+    switch (placement) {
+      case 'top':
+        if (rect.top - offset - cardHeight < padding) {
+          // Flipped to bottom, point up
+          style = {
+            top: `${rect.top + rect.height + offset}px`,
+            left: `${centerX}px`,
+            transform: 'translate(-50%, 0)',
+          };
+        } else {
+          // Normal top placement, point down
+          style = {
+            top: `${rect.top - offset}px`,
+            left: `${centerX}px`,
+            transform: 'translate(-50%, -100%)',
+          };
+        }
+        break;
+        
+      case 'bottom':
+        if (rect.top + rect.height + offset + cardHeight > viewportHeight - padding) {
+          // Flipped to top, point down
+          style = {
+            top: `${rect.top - offset}px`,
+            left: `${centerX}px`,
+            transform: 'translate(-50%, -100%)',
+          };
+        } else {
+          // Normal bottom placement, point up
+          style = {
+            top: `${rect.top + rect.height + offset}px`,
+            left: `${centerX}px`,
+            transform: 'translate(-50%, 0)',
+          };
+        }
+        break;
+        
+      case 'left':
+        if (rect.left - offset - cardWidth < padding) {
+          // Flipped to right, point left
+          style = {
+            top: `${centerY}px`,
+            left: `${rect.left + rect.width + offset}px`,
+            transform: 'translate(0, -50%)',
+          };
+        } else {
+          // Normal left placement, point right
+          style = {
+            top: `${centerY}px`,
+            left: `${rect.left - offset}px`,
+            transform: 'translate(-100%, -50%)',
+          };
+        }
+        break;
+        
+      case 'right':
+        if (rect.left + rect.width + offset + cardWidth > viewportWidth - padding) {
+          // Flipped to left, point right
+          style = {
+            top: `${centerY}px`,
+            left: `${rect.left - offset}px`,
+            transform: 'translate(-100%, -50%)',
+          };
+        } else {
+          // Normal right placement, point left
+          style = {
+            top: `${centerY}px`,
+            left: `${rect.left + rect.width + offset}px`,
+            transform: 'translate(0, -50%)',
+          };
+        }
+        break;
+        
+      default:
+        style = {
+          top: `${rect.top + rect.height + offset}px`,
+          left: `${centerX}px`,
+          transform: 'translate(-50%, 0)',
+        };
+    }
+    
+    return style;
+  };
 
-  const handleNext = (e) => { e.preventDefault(); e.stopPropagation(); onNext && onNext(); };
-  const handleSkip = (e) => { e.preventDefault(); e.stopPropagation(); onSkip && onSkip(); };
+  // IMPROVED: Determine pointer direction based on actual placement
+  const getPointerStyle = () => {
+    if (!rect) return {};
+    
+    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
+    const viewportWidth = vv ? vv.width : window.innerWidth;
+    const viewportHeight = vv ? vv.height : window.innerHeight;
+    const cardWidth = Math.min(viewportWidth * 0.9, 360);
+    const cardHeight = 200;
+    const padding = 16;
+    
+    let isFlipped = false;
+    
+    switch (placement) {
+      case 'top':
+        isFlipped = rect.top - offset - cardHeight < padding;
+        break;
+      case 'bottom':
+        isFlipped = rect.top + rect.height + offset + cardHeight > viewportHeight - padding;
+        break;
+      case 'left':
+        isFlipped = rect.left - offset - cardWidth < padding;
+        break;
+      case 'right':
+        isFlipped = rect.left + rect.width + offset + cardWidth > viewportWidth - padding;
+        break;
+    }
+    
+    // Return appropriate pointer style based on placement and flip status
+    if (placement === 'top' && !isFlipped) {
+      return {
+        borderLeft: '8px solid transparent',
+        borderRight: '8px solid transparent',
+        borderBottom: '10px solid white',
+      };
+    } else if ((placement === 'bottom' && !isFlipped) || (placement === 'top' && isFlipped)) {
+      return {
+        borderLeft: '8px solid transparent',
+        borderRight: '8px solid transparent',
+        borderTop: '10px solid white',
+      };
+    } else if ((placement === 'left' && !isFlipped) || (placement === 'right' && isFlipped)) {
+      return {
+        borderTop: '8px solid transparent',
+        borderBottom: '8px solid transparent',
+        borderRight: '10px solid white',
+      };
+    } else if ((placement === 'right' && !isFlipped) || (placement === 'left' && isFlipped)) {
+      return {
+        borderTop: '8px solid transparent',
+        borderBottom: '8px solid transparent',
+        borderLeft: '10px solid white',
+      };
+    }
+    
+    return {};
+  };
+
+  // IMPROVED: Handle button clicks with preventDefault to avoid extension conflicts
+  const handleNext = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onNext();
+  };
+
+  const handleSkip = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onSkip();
+  };
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
@@ -198,60 +374,69 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         />
       )}
 
-      {/* Callout card */}
+      {/* Callout card with improved positioning */}
       <div
         ref={cardRef}
-        className="absolute bg-white w-[min(90vw,360px)] rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
-        style={computedCardStyle}
+        className="absolute bg-white rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
+        style={{
+          ...cardPos(),
+          width: 'min(90vw, 360px)',
+          maxHeight: '80vh',
+          zIndex: 100,
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="tutorial-title"
       >
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 id="tutorial-title" className="font-bold text-gray-900 text-sm sm:text-base">{step.title}</h3>
-          <button type="button" onClick={handleSkip} className="text-gray-500 hover:text-gray-700 text-sm active:scale-[0.98]">Skip</button>
+          <h3 id="tutorial-title" className="font-bold text-gray-900 text-sm sm:text-base">
+            {step.title}
+          </h3>
+          <button 
+            onClick={handleSkip} 
+            className="text-gray-500 hover:text-gray-700 text-sm font-medium px-2 py-1 rounded hover:bg-gray-100 transition-colors"
+            type="button"
+          >
+            Skip
+          </button>
         </div>
-        <div className="px-4 py-3 max-h-[80vh] overflow-y-auto">
+        <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: '50vh' }}>
           <p className="text-sm text-gray-700 leading-relaxed">{step.body}</p>
           {step.tip && (
-            <div className="mt-2 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">💡 {step.tip}</div>
+            <div className="mt-3 text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <span className="font-semibold text-blue-800">💡 Tip: </span>
+              {step.tip}
+            </div>
           )}
         </div>
-        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
-          <div className="text-xs text-gray-500">Step {stepIndex + 1} of {steps.length}</div>
-          <button type="button" onClick={handleNext} className="px-3 py-2 rounded-lg text-white bg-[#119BFE] hover:brightness-95 active:scale-[0.98] shadow-sm font-semibold text-sm">
+        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+          <div className="text-xs text-gray-500 font-medium">
+            Step {stepIndex + 1} of {steps.length}
+          </div>
+          <button 
+            onClick={handleNext} 
+            className="px-4 py-2 rounded-lg text-white bg-[#119BFE] hover:brightness-95 font-semibold text-sm transition-all shadow-sm hover:shadow-md active:scale-95"
+            type="button"
+          >
             {stepIndex + 1 === steps.length ? 'Done' : 'Next'}
           </button>
         </div>
       </div>
 
-      {/* Pointer (small triangle) */}
+      {/* Pointer (small triangle) with improved positioning */}
       {rect && (
         <div
           className="absolute w-0 h-0 pointer-events-none"
           style={{
-            ...(effPlacement === 'top' && { top: (rect.top - offset) + 'px', left: (rect.left + rect.width / 2) + 'px', transform: 'translate(-50%, -100%)' }),
-            ...(effPlacement === 'bottom' && { top: (rect.top + rect.height + offset) + 'px', left: (rect.left + rect.width / 2) + 'px', transform: 'translate(-50%, 0)' }),
-            ...(effPlacement === 'left' && { top: (rect.top + rect.height / 2) + 'px', left: (rect.left - offset) + 'px', transform: 'translate(-100%, -50%)' }),
-            ...(effPlacement === 'right' && { top: (rect.top + rect.height / 2) + 'px', left: (rect.left + rect.width + offset) + 'px', transform: 'translate(0, -50%)' })
+            ...pointerPos(),
+            zIndex: 99,
           }}
         >
           <div
             className="w-0 h-0"
             style={{
-              borderLeft: effPlacement === 'bottom' || effPlacement === 'top' ? '8px solid transparent' : undefined,
-              borderRight: effPlacement === 'bottom' || effPlacement === 'top' ? '8px solid transparent' : undefined,
-              borderTop: effPlacement === 'bottom' ? '10px solid white' : undefined,
-              borderBottom: effPlacement === 'top' ? '10px solid white' : undefined,
-              borderTopColor: effPlacement === 'bottom' ? 'white' : undefined,
-              borderBottomColor: effPlacement === 'top' ? 'white' : undefined,
-              borderTopWidth: effPlacement === 'bottom' ? 10 : undefined,
-              borderBottomWidth: effPlacement === 'top' ? 10 : undefined,
-              borderLeftWidth: effPlacement === 'left' ? 10 : (effPlacement === 'right' ? 0 : 8),
-              borderRightWidth: effPlacement === 'right' ? 10 : (effPlacement === 'left' ? 0 : 8),
-              borderLeftColor: effPlacement === 'right' ? 'white' : 'transparent',
-              borderRightColor: effPlacement === 'left' ? 'white' : 'transparent',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
+              ...getPointerStyle(),
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.15))',
             }}
           />
         </div>
@@ -261,5 +446,3 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
 };
 
 export default TutorialCoachmarks;
-
-
