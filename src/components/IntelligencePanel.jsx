@@ -17,6 +17,7 @@ const IntelligencePanel = ({
 }) => {
   const [activeTab, setActiveTab] = useState('conflicts'); // 'conflicts', 'suggestions', 'patterns'
   const [smartPrefs, setSmartPrefs] = useState({ exercise: true, restaurant: true, study: true, family: true, productivity: true });
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
 
   const visibleConflicts = conflicts || [];
   const visibleSuggestions = (suggestions || []).filter(s => smartPrefs[s.category ?? 'productivity']);
@@ -263,17 +264,41 @@ const IntelligencePanel = ({
                   <p className="text-xs text-gray-600">
                     AI-powered recommendations based on your patterns
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {Object.keys(smartPrefs).map(key => (
-                      <button
-                        key={key}
-                        onClick={() => setSmartPrefs(p => ({ ...p, [key]: !p[key] }))}
-                        className={`text-xs px-2 py-1 rounded-full border ${smartPrefs[key] ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-300 text-gray-600'}`}
-                        aria-pressed={smartPrefs[key]}
-                      >
-                        {smartPrefs[key] ? '✓ ' : ''}{key.charAt(0).toUpperCase() + key.slice(1)}
-                      </button>
-                    ))}
+                  <div className="mt-2 relative inline-block">
+                    {(() => {
+                      const enabledCount = Object.values(smartPrefs).filter(Boolean).length;
+                      return (
+                        <>
+                          <button
+                            onClick={() => setShowFilterMenu(v => !v)}
+                            className="text-xs px-3 py-1.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 shadow-sm"
+                            aria-expanded={showFilterMenu}
+                            aria-haspopup="menu"
+                          >
+                            Filters{enabledCount < Object.keys(smartPrefs).length ? ` (${enabledCount})` : ''}
+                          </button>
+                          {showFilterMenu && (
+                            <div className="absolute z-20 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg p-2" role="menu">
+                              {Object.keys(smartPrefs).map(key => (
+                                <label key={key} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-gray-50 text-sm text-gray-700 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="accent-[#119BFE]"
+                                    checked={!!smartPrefs[key]}
+                                    onChange={() => setSmartPrefs(p => ({ ...p, [key]: !p[key] }))}
+                                  />
+                                  <span>{key.charAt(0).toUpperCase() + key.slice(1)}</span>
+                                </label>
+                              ))}
+                              <div className="mt-1 border-t border-gray-200 pt-1 flex justify-between">
+                                <button className="text-xs text-gray-600 hover:underline" onClick={() => setSmartPrefs({ exercise: true, restaurant: true, study: true, family: true, productivity: true })}>Select all</button>
+                                <button className="text-xs text-gray-600 hover:underline" onClick={() => setSmartPrefs({ exercise: false, restaurant: false, study: false, family: false, productivity: false })}>Clear</button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
                 
