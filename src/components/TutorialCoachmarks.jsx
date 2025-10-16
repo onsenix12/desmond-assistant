@@ -5,6 +5,7 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
   const step = steps[Math.min(stepIndex, steps.length - 1)];
 
   const [rect, setRect] = React.useState(null);
+  const [isScrolling, setIsScrolling] = React.useState(false);
   const cardRef = React.useRef(null);
 
   const measure = React.useCallback(() => {
@@ -43,21 +44,23 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
 
     const rafId = requestAnimationFrame(measure);
 
-    // Debounced scroll measurement and rAF-resized measurement
-    let scrollDebounceTimer = null;
+    // IMPROVED: Simplified scroll and resize handling
+    let scrollTimer = null;
     let resizeRafId = null;
 
-    const debouncedScrollMeasure = () => {
-      if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
-      scrollDebounceTimer = setTimeout(() => measure(), 100);
+    const handleScroll = () => {
+      setIsScrolling(true);
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        setIsScrolling(false);
+        measure();
+      }, 150); // Increased from 100ms for better stability
     };
 
     const handleResize = () => {
       if (resizeRafId) cancelAnimationFrame(resizeRafId);
       resizeRafId = requestAnimationFrame(() => measure());
     };
-
-    const handleScroll = () => debouncedScrollMeasure();
     
     window.addEventListener('resize', handleResize, { passive: true });
     window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
@@ -68,226 +71,83 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
       vv.addEventListener('scroll', handleScroll, { passive: true });
     }
 
-    let ro = null;
-    // Attach scroll listeners to all scrollable ancestors of the target
+    // Simplified: Only attach scroll listeners to direct scrollable ancestors
     let scrollParents = [];
     if (step.selector) {
       const target = document.querySelector(step.selector);
       if (target) {
-        const getStyle = (node) => node && node.nodeType === 1 ? window.getComputedStyle(node) : null;
-        let node = target;
-        while (node && node !== document.body && node !== document.documentElement) {
-          const style = getStyle(node);
-          if (style) {
-            const overflowY = style.overflowY;
-            const overflowX = style.overflowX;
-            const canScrollY = (overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight;
-            const canScrollX = (overflowX === 'auto' || overflowX === 'scroll') && node.scrollWidth > node.clientWidth;
-            if (canScrollY || canScrollX) {
-              scrollParents.push(node);
-            }
+        let node = target.parentElement;
+        let depth = 0;
+        while (node && node !== document.body && depth < 5) { // Limit depth for performance
+          const style = window.getComputedStyle(node);
+          const overflowY = style.overflowY;
+          if (overflowY === 'auto' || overflowY === 'scroll') {
+            scrollParents.push(node);
           }
           node = node.parentElement;
-        }
-        // Always include the scrollingElement as a fallback
-        const scrollingElement = document.scrollingElement || document.documentElement;
-        if (scrollingElement && !scrollParents.includes(scrollingElement)) {
-          scrollParents.push(scrollingElement);
+          depth++;
         }
       }
     }
+    
     scrollParents.forEach((sp) => {
-      try { sp.addEventListener('scroll', handleScroll, { passive: true }); } catch {}
+      sp.addEventListener('scroll', handleScroll, { passive: true });
     });
-    if (step.selector) {
-      const el = document.querySelector(step.selector);
-      if (el && typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(() => requestAnimationFrame(measure));
-        try { ro.observe(el); } catch {}
-      }
-    }
 
     return () => {
       cancelAnimationFrame(rafId);
-      if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
+      if (scrollTimer) clearTimeout(scrollTimer);
       if (resizeRafId) cancelAnimationFrame(resizeRafId);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll, true);
-      if (scrollParents && scrollParents.length) {
-        scrollParents.forEach((sp) => {
-          try { sp.removeEventListener('scroll', handleScroll); } catch {}
-        });
-      }
+      scrollParents.forEach((sp) => {
+        sp.removeEventListener('scroll', handleScroll);
+      });
       if (vv) {
         vv.removeEventListener('resize', handleResize);
         vv.removeEventListener('scroll', handleScroll);
       }
-      if (ro) {
-        try { ro.disconnect(); } catch {}
-      }
     };
   }, [measure, step.selector]);
 
-  // NEW: Get responsive placement based on screen size and original placement
-  const getResponsivePlacement = () => {
-    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
-    const viewportWidth = vv ? vv.width : window.innerWidth;
-    const isMobile = viewportWidth < 768; // Tailwind 'md' breakpoint
-    
-    let responsivePlacement = step.placement || 'bottom';
-    
-    // On mobile, convert left/right placements to top/bottom
-    if (isMobile) {
-      if (responsivePlacement === 'left' || responsivePlacement === 'right') {
-        // For conflicts panel and other wide elements, use top placement on mobile
-        responsivePlacement = 'top';
-      }
-    }
-    
-    return responsivePlacement;
-  };
-
-  const placement = getResponsivePlacement();
-  const offset = 12;
-
-  // IMPROVED: Calculate card position with viewport boundary checking and mobile responsiveness
+  // Card positioning logic
   const cardPos = () => {
     if (!rect) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-    
-    // Get viewport dimensions
+
+    // IMPROVED: Center card on screen while scrolling for stability
+    if (isScrolling) {
+      return {
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+      };
+    }
+
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     const viewportWidth = vv ? vv.width : window.innerWidth;
     const viewportHeight = vv ? vv.height : window.innerHeight;
-    const isMobile = viewportWidth < 768;
     
-    // Card dimensions (approximate - will be refined after render)
-    const cardWidth = Math.min(viewportWidth * 0.9, 360);
-    const cardHeight = 200; // Approximate height
-    const padding = isMobile ? 16 : 24; // More aggressive padding on mobile
-
+    const offset = 16;
+    const padding = 16;
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
     
-    let top, left, transform;
-    
-    switch (placement) {
-      case 'top':
-        top = rect.top - offset;
-        left = centerX;
-        transform = 'translate(-50%, -100%)';
-        
-        // Check if card goes above viewport
-        if (top - cardHeight < padding) {
-          // Flip to bottom
-          top = rect.top + rect.height + offset;
-          transform = 'translate(-50%, 0)';
-        }
-        break;
-        
-      case 'bottom':
-        top = rect.top + rect.height + offset;
-        left = centerX;
-        transform = 'translate(-50%, 0)';
-        
-        // Check if card goes below viewport
-        if (top + cardHeight > viewportHeight - padding) {
-          // Flip to top
-          top = rect.top - offset;
-          transform = 'translate(-50%, -100%)';
-        }
-        break;
-        
-      case 'left':
-        top = centerY;
-        left = rect.left - offset;
-        transform = 'translate(-100%, -50%)';
-        
-        // Check if card goes past left edge
-        if (left - cardWidth < padding) {
-          // Flip to right
-          left = rect.left + rect.width + offset;
-          transform = 'translate(0, -50%)';
-        }
-        break;
-        
-      case 'right':
-        top = centerY;
-        left = rect.left + rect.width + offset;
-        transform = 'translate(0, -50%)';
-        
-        // Check if card goes past right edge
-        if (left + cardWidth > viewportWidth - padding) {
-          // Flip to left
-          left = rect.left - offset;
-          transform = 'translate(-100%, -50%)';
-        }
-        break;
-        
-      default:
-        top = rect.top + rect.height + offset;
-        left = centerX;
-        transform = 'translate(-50%, 0)';
-    }
-    
-    // Final boundary check for horizontal position
-    const halfCardWidth = cardWidth / 2;
-    if (transform.includes('-50%')) {
-      // Centered horizontally
-      if (left - halfCardWidth < padding) {
-        left = halfCardWidth + padding;
-      } else if (left + halfCardWidth > viewportWidth - padding) {
-        left = viewportWidth - halfCardWidth - padding;
-      }
-    }
-    
-    // Final boundary check for vertical position (especially important on mobile)
-    if (isMobile) {
-      // Ensure card doesn't go off bottom
-      if (top + cardHeight > viewportHeight - padding) {
-        top = viewportHeight - cardHeight - padding;
-      }
-      // Ensure card doesn't go off top
-      if (top < padding) {
-        top = padding;
-      }
-    }
-    
-    return { 
-      top: `${top}px`, 
-      left: `${left}px`, 
-      transform,
-      maxWidth: `${cardWidth}px`
-    };
-  };
-
-  // IMPROVED: Calculate pointer position with same boundary logic
-  const pointerPos = () => {
-    if (!rect) return null;
-    
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    
-    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
-    const viewportWidth = vv ? vv.width : window.innerWidth;
-    const viewportHeight = vv ? vv.height : window.innerHeight;
-    const isMobile = viewportWidth < 768;
+    const placement = step.placement || 'bottom';
     const cardWidth = Math.min(viewportWidth * 0.9, 360);
-    const cardHeight = 200;
-    const padding = isMobile ? 16 : 24;
+    const cardHeight = 180; // Reduced from 200 since we have less content now
     
     let style = {};
     
     switch (placement) {
       case 'top':
         if (rect.top - offset - cardHeight < padding) {
-          // Flipped to bottom, point up
+          // Flip to bottom
           style = {
             top: `${rect.top + rect.height + offset}px`,
             left: `${centerX}px`,
             transform: 'translate(-50%, 0)',
           };
         } else {
-          // Normal top placement, point down
           style = {
             top: `${rect.top - offset}px`,
             left: `${centerX}px`,
@@ -298,14 +158,13 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         
       case 'bottom':
         if (rect.top + rect.height + offset + cardHeight > viewportHeight - padding) {
-          // Flipped to top, point down
+          // Flip to top
           style = {
             top: `${rect.top - offset}px`,
             left: `${centerX}px`,
             transform: 'translate(-50%, -100%)',
           };
         } else {
-          // Normal bottom placement, point up
           style = {
             top: `${rect.top + rect.height + offset}px`,
             left: `${centerX}px`,
@@ -316,14 +175,13 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         
       case 'left':
         if (rect.left - offset - cardWidth < padding) {
-          // Flipped to right, point left
+          // Flip to right
           style = {
             top: `${centerY}px`,
             left: `${rect.left + rect.width + offset}px`,
             transform: 'translate(0, -50%)',
           };
         } else {
-          // Normal left placement, point right
           style = {
             top: `${centerY}px`,
             left: `${rect.left - offset}px`,
@@ -334,14 +192,13 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         
       case 'right':
         if (rect.left + rect.width + offset + cardWidth > viewportWidth - padding) {
-          // Flipped to left, point right
+          // Flip to left
           style = {
             top: `${centerY}px`,
             left: `${rect.left - offset}px`,
             transform: 'translate(-100%, -50%)',
           };
         } else {
-          // Normal right placement, point left
           style = {
             top: `${centerY}px`,
             left: `${rect.left + rect.width + offset}px`,
@@ -361,66 +218,71 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     return style;
   };
 
-  // IMPROVED: Determine pointer direction based on actual placement
-  const getPointerStyle = () => {
+  // Pointer positioning
+  const pointerPos = () => {
     if (!rect) return {};
-    
-    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
-    const viewportWidth = vv ? vv.width : window.innerWidth;
-    const viewportHeight = vv ? vv.height : window.innerHeight;
-    const isMobile = viewportWidth < 768;
-    const cardWidth = Math.min(viewportWidth * 0.9, 360);
-    const cardHeight = 200;
-    const padding = isMobile ? 16 : 24;
-    
-    let isFlipped = false;
+    const placement = step.placement || 'bottom';
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
     
     switch (placement) {
       case 'top':
-        isFlipped = rect.top - offset - cardHeight < padding;
-        break;
+        return { top: `${rect.top - 12}px`, left: `${centerX}px` };
       case 'bottom':
-        isFlipped = rect.top + rect.height + offset + cardHeight > viewportHeight - padding;
-        break;
+        return { top: `${rect.top + rect.height + 12}px`, left: `${centerX}px` };
       case 'left':
-        isFlipped = rect.left - offset - cardWidth < padding;
-        break;
+        return { top: `${centerY}px`, left: `${rect.left - 12}px` };
       case 'right':
-        isFlipped = rect.left + rect.width + offset + cardWidth > viewportWidth - padding;
-        break;
+        return { top: `${centerY}px`, left: `${rect.left + rect.width + 12}px` };
+      default:
+        return { top: `${rect.top + rect.height + 12}px`, left: `${centerX}px` };
     }
-    
-    // Return appropriate pointer style based on placement and flip status
-    if (placement === 'top' && !isFlipped) {
-      return {
-        borderLeft: '8px solid transparent',
-        borderRight: '8px solid transparent',
-        borderBottom: '10px solid white',
-      };
-    } else if ((placement === 'bottom' && !isFlipped) || (placement === 'top' && isFlipped)) {
-      return {
-        borderLeft: '8px solid transparent',
-        borderRight: '8px solid transparent',
-        borderTop: '10px solid white',
-      };
-    } else if ((placement === 'left' && !isFlipped) || (placement === 'right' && isFlipped)) {
-      return {
-        borderTop: '8px solid transparent',
-        borderBottom: '8px solid transparent',
-        borderRight: '10px solid white',
-      };
-    } else if ((placement === 'right' && !isFlipped) || (placement === 'left' && isFlipped)) {
-      return {
-        borderTop: '8px solid transparent',
-        borderBottom: '8px solid transparent',
-        borderLeft: '10px solid white',
-      };
-    }
-    
-    return {};
   };
 
-  // IMPROVED: Handle button clicks with preventDefault to avoid extension conflicts
+  // Pointer arrow style
+  const getPointerStyle = () => {
+    const placement = step.placement || 'bottom';
+    const size = 10;
+    
+    switch (placement) {
+      case 'top':
+        return {
+          borderLeft: `${size}px solid transparent`,
+          borderRight: `${size}px solid transparent`,
+          borderTop: `${size}px solid white`,
+          transform: 'translate(-50%, 0)',
+        };
+      case 'bottom':
+        return {
+          borderLeft: `${size}px solid transparent`,
+          borderRight: `${size}px solid transparent`,
+          borderBottom: `${size}px solid white`,
+          transform: 'translate(-50%, -100%)',
+        };
+      case 'left':
+        return {
+          borderTop: `${size}px solid transparent`,
+          borderBottom: `${size}px solid transparent`,
+          borderLeft: `${size}px solid white`,
+          transform: 'translate(0, -50%)',
+        };
+      case 'right':
+        return {
+          borderTop: `${size}px solid transparent`,
+          borderBottom: `${size}px solid transparent`,
+          borderRight: `${size}px solid white`,
+          transform: 'translate(-100%, -50%)',
+        };
+      default:
+        return {
+          borderLeft: `${size}px solid transparent`,
+          borderRight: `${size}px solid transparent`,
+          borderBottom: `${size}px solid white`,
+          transform: 'translate(-50%, -100%)',
+        };
+    }
+  };
+
   const handleNext = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -438,8 +300,8 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/45" />
 
-      {/* Highlight box with big box-shadow to create spotlight */}
-      {rect && (
+      {/* Highlight box - only show when not scrolling for smoother experience */}
+      {rect && !isScrolling && (
         <div
           className="absolute rounded-xl border-2"
           style={{
@@ -449,21 +311,20 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
             height: rect.height + 16,
             borderColor: '#119BFE',
             boxShadow: '0 0 0 20000px rgba(0,0,0,0.55)',
+            transition: 'all 0.2s ease-out',
           }}
         />
       )}
 
-      {/* Callout card with improved positioning */}
+      {/* Callout card - REMOVED overflow and maxHeight */}
       <div
         ref={cardRef}
-        className="absolute bg-white rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
+        className="absolute bg-white rounded-2xl shadow-2xl pointer-events-auto"
         style={{
           ...cardPos(),
           width: 'min(90vw, 360px)',
-          maxHeight: '80vh',
           zIndex: 100,
-          transition: 'top 0.2s ease-out, left 0.2s ease-out, transform 0.2s ease-out',
-          willChange: 'top, left, transform'
+          transition: 'all 0.25s ease-out',
         }}
         role="dialog"
         aria-modal="true"
@@ -481,15 +342,18 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
             Skip
           </button>
         </div>
-        <div className="px-4 py-3 overflow-y-auto" style={{ maxHeight: '50vh' }}>
+        
+        {/* IMPROVED: No scrolling container needed - content fits naturally */}
+        <div className="px-4 py-3">
           <p className="text-sm text-gray-700 leading-relaxed">{step.body}</p>
           {step.tip && (
-            <div className="mt-3 text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <span className="font-semibold text-blue-800">💡 Tip: </span>
+            <div className="mt-3 text-xs text-gray-600 bg-blue-50 border border-blue-200 rounded-lg p-2">
+              <span className="font-semibold text-blue-800">💡 </span>
               {step.tip}
             </div>
           )}
         </div>
+        
         <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50">
           <div className="text-xs text-gray-500 font-medium">
             Step {stepIndex + 1} of {steps.length}
@@ -504,15 +368,14 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         </div>
       </div>
 
-      {/* Pointer (small triangle) with improved positioning */}
-      {rect && (
+      {/* Pointer - hide during scroll for cleaner appearance */}
+      {rect && !isScrolling && (
         <div
           className="absolute w-0 h-0 pointer-events-none"
           style={{
             ...pointerPos(),
             zIndex: 99,
-            transition: 'top 0.2s ease-out, left 0.2s ease-out, transform 0.2s ease-out',
-            willChange: 'top, left, transform'
+            transition: 'all 0.2s ease-out',
           }}
         >
           <div
