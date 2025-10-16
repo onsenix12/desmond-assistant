@@ -34,7 +34,11 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
       const el = document.querySelector(step.selector);
       if (el && el.scrollIntoView) {
         try { 
-          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' }); 
+          el.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center', 
+            inline: 'center' 
+          }); 
         } catch (e) {
           // Fallback for browsers that don't support scrollIntoView options
           try { el.scrollIntoView(); } catch {}
@@ -78,15 +82,33 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         vv.removeEventListener('scroll', handleScroll);
       }
       if (ro) {
-        try { ro.disconnect(); } catch {}
-      }
+        try { ro.disconnect(); } catch {}}
     };
   }, [measure, step.selector]);
 
-  const placement = step.placement || 'bottom';
+  // NEW: Get responsive placement based on screen size and original placement
+  const getResponsivePlacement = () => {
+    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
+    const viewportWidth = vv ? vv.width : window.innerWidth;
+    const isMobile = viewportWidth < 768; // Tailwind 'md' breakpoint
+    
+    let responsivePlacement = step.placement || 'bottom';
+    
+    // On mobile, convert left/right placements to top/bottom
+    if (isMobile) {
+      if (responsivePlacement === 'left' || responsivePlacement === 'right') {
+        // For conflicts panel and other wide elements, use top placement on mobile
+        responsivePlacement = 'top';
+      }
+    }
+    
+    return responsivePlacement;
+  };
+
+  const placement = getResponsivePlacement();
   const offset = 12;
 
-  // IMPROVED: Calculate card position with viewport boundary checking
+  // IMPROVED: Calculate card position with viewport boundary checking and mobile responsiveness
   const cardPos = () => {
     if (!rect) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
     
@@ -94,11 +116,12 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     const viewportWidth = vv ? vv.width : window.innerWidth;
     const viewportHeight = vv ? vv.height : window.innerHeight;
+    const isMobile = viewportWidth < 768;
     
     // Card dimensions (approximate - will be refined after render)
     const cardWidth = Math.min(viewportWidth * 0.9, 360);
     const cardHeight = 200; // Approximate height
-    const padding = 16; // Safe padding from edges
+    const padding = isMobile ? 16 : 24; // More aggressive padding on mobile
 
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
@@ -175,6 +198,18 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
       }
     }
     
+    // Final boundary check for vertical position (especially important on mobile)
+    if (isMobile) {
+      // Ensure card doesn't go off bottom
+      if (top + cardHeight > viewportHeight - padding) {
+        top = viewportHeight - cardHeight - padding;
+      }
+      // Ensure card doesn't go off top
+      if (top < padding) {
+        top = padding;
+      }
+    }
+    
     return { 
       top: `${top}px`, 
       left: `${left}px`, 
@@ -193,9 +228,10 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     const viewportWidth = vv ? vv.width : window.innerWidth;
     const viewportHeight = vv ? vv.height : window.innerHeight;
+    const isMobile = viewportWidth < 768;
     const cardWidth = Math.min(viewportWidth * 0.9, 360);
     const cardHeight = 200;
-    const padding = 16;
+    const padding = isMobile ? 16 : 24;
     
     let style = {};
     
@@ -290,9 +326,10 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     const viewportWidth = vv ? vv.width : window.innerWidth;
     const viewportHeight = vv ? vv.height : window.innerHeight;
+    const isMobile = viewportWidth < 768;
     const cardWidth = Math.min(viewportWidth * 0.9, 360);
     const cardHeight = 200;
-    const padding = 16;
+    const padding = isMobile ? 16 : 24;
     
     let isFlipped = false;
     
