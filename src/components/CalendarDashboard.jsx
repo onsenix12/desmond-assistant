@@ -1039,12 +1039,14 @@ const CalendarDashboard = ({ connectedApps }) => {
           {/* Left: Calendar Grid (70%) */}
           <div className="lg:col-span-2 order-1">
             {/* Mobile: Show selected day events in list view */}
-            <EventList 
-              selectedDate={selectedDate}
-              selectedDayEvents={selectedDayEvents}
-              setSelectedDate={setSelectedDate}
-              shouldEventShowStrikethrough={shouldEventShowStrikethrough}
-            />
+            {!sheetOpen && (
+              <EventList 
+                selectedDate={selectedDate}
+                selectedDayEvents={selectedDayEvents}
+                setSelectedDate={setSelectedDate}
+                shouldEventShowStrikethrough={shouldEventShowStrikethrough}
+              />
+            )}
             
             <CalendarErrorBoundary>
               <CalendarGrid
