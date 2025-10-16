@@ -319,7 +319,7 @@ export const desmondProfile = {
       title: "Weekend Schedule Jam",
       severity: "low",
       date: "2025-10-18",
-      description: "Emily's spa (10am), your gym (8am), Jayden's event (2pm) - no family time till dinner",
+      description: "Your gym (8am), Emily's spa (10am), Jayden's event (2pm) — no shared time till dinner",
       events: ["e17", "e18", "e19"],
       impact: "Fragmented day, everyone separate till evening",
       pattern: "Happens most Saturdays",

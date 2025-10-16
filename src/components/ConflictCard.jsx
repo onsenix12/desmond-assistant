@@ -22,12 +22,13 @@ const ConflictCard = ({ conflict, onResolve }) => {
 
   const SeverityIcon = severityConfig[conflict.severity]?.icon || AlertCircle;
 
+  const isActiveConflict = !selectedResolution;
   return (
-    <div className={`border border-gray-200 rounded-lg overflow-hidden ${selectedResolution ? 'bg-green-50' : 'bg-white'}`}>
+    <div className={`border rounded-lg overflow-hidden ${isActiveConflict ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
       {/* Header */}
-      <div className={`p-4 cursor-pointer ${selectedResolution ? 'bg-green-50' : 'bg-gray-50'}`} onClick={() => setExpanded(!expanded)}>
+      <div className={`p-4 cursor-pointer ${selectedResolution ? 'bg-green-50' : 'bg-red-50'}`} onClick={() => setExpanded(!expanded)}>
         <div className="flex items-start gap-3">
-          <div className={`p-2 rounded-lg ${selectedResolution ? 'bg-green-200 text-green-700' : 'bg-[#119BFE1A] text-[#119BFE]'}`}>
+          <div className={`p-2 rounded-lg ${selectedResolution ? 'bg-green-200 text-green-700' : 'bg-red-200 text-red-800'}`}>
             {selectedResolution ? (
               <CheckCircle2 size={20} />
             ) : (
@@ -37,9 +38,9 @@ const ConflictCard = ({ conflict, onResolve }) => {
           
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-bold text-gray-800">{conflict.title}</h3>
-              <span className={`text-xs px-2 py-0.5 rounded ${selectedResolution ? 'bg-green-200 text-green-800' : 'bg-gray-200 text-gray-800'}`}>
-                {selectedResolution ? 'Resolved' : severityConfig[conflict.severity]?.label}
+              <h3 className={`font-bold ${isActiveConflict ? 'text-red-900' : 'text-gray-800'}`}>{conflict.title}</h3>
+              <span className={`text-xs px-2 py-0.5 rounded ${selectedResolution ? 'bg-green-200 text-green-800' : 'bg-red-200 text-red-800'}`}>
+                {selectedResolution ? 'Resolved' : 'Conflict'}
               </span>
             </div>
             
@@ -51,7 +52,7 @@ const ConflictCard = ({ conflict, onResolve }) => {
               </div>
             )}
             
-            <p className="text-sm text-gray-700 mb-2">
+            <p className={`text-sm mb-2 ${isActiveConflict ? 'text-red-800' : 'text-gray-700'}`}>
               {conflict.description}
             </p>
             {conflict.howDetected && (
