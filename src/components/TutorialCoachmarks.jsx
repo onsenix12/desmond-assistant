@@ -69,6 +69,36 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     }
 
     let ro = null;
+    // Attach scroll listeners to all scrollable ancestors of the target
+    let scrollParents = [];
+    if (step.selector) {
+      const target = document.querySelector(step.selector);
+      if (target) {
+        const getStyle = (node) => node && node.nodeType === 1 ? window.getComputedStyle(node) : null;
+        let node = target;
+        while (node && node !== document.body && node !== document.documentElement) {
+          const style = getStyle(node);
+          if (style) {
+            const overflowY = style.overflowY;
+            const overflowX = style.overflowX;
+            const canScrollY = (overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight;
+            const canScrollX = (overflowX === 'auto' || overflowX === 'scroll') && node.scrollWidth > node.clientWidth;
+            if (canScrollY || canScrollX) {
+              scrollParents.push(node);
+            }
+          }
+          node = node.parentElement;
+        }
+        // Always include the scrollingElement as a fallback
+        const scrollingElement = document.scrollingElement || document.documentElement;
+        if (scrollingElement && !scrollParents.includes(scrollingElement)) {
+          scrollParents.push(scrollingElement);
+        }
+      }
+    }
+    scrollParents.forEach((sp) => {
+      try { sp.addEventListener('scroll', handleScroll, { passive: true }); } catch {}
+    });
     if (step.selector) {
       const el = document.querySelector(step.selector);
       if (el && typeof ResizeObserver !== 'undefined') {
@@ -83,6 +113,11 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
       if (resizeRafId) cancelAnimationFrame(resizeRafId);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll, true);
+      if (scrollParents && scrollParents.length) {
+        scrollParents.forEach((sp) => {
+          try { sp.removeEventListener('scroll', handleScroll); } catch {}
+        });
+      }
       if (vv) {
         vv.removeEventListener('resize', handleResize);
         vv.removeEventListener('scroll', handleScroll);
