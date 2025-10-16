@@ -47,7 +47,8 @@ const CalendarDashboard = ({ connectedApps }) => {
   const [chatInput, setChatInput] = useState('');
   const [showAddEvent, setShowAddEvent] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem('tt_tutorial_done') === 'true' ? false : true);
+  // Do not auto-start tutorial on load; show welcome first
+  const [showTutorial, setShowTutorial] = useState(false);
   const [showWelcome, setShowWelcome] = useState(() => localStorage.getItem('tt_show_welcome') === 'true');
   const [tutorialStep, setTutorialStep] = useState(0);
   const [newEvent, setNewEvent] = useState({
