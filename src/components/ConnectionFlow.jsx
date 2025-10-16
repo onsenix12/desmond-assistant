@@ -113,31 +113,33 @@ const ConnectionFlow = ({ onComplete }) => {
               subtitle="So we can see commitments and prevent conflicts automatically."
             />
             <div className="px-6 sm:px-10 pb-2">
-              <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
-                  <Calendar className="w-5 h-5" />
+              <div className="p-4 border border-gray-200 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800">Google Calendar</p>
+                  </div>
+                  {calendar.status === 'connected' ? (
+                    <span className="flex items-center gap-1 text-green-600 text-sm font-semibold">
+                      <CheckCircle2 className="w-4 h-4" /> Connected
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleConnect('google')}
+                      disabled={calendar.loading}
+                      className={`px-4 py-2 rounded-lg font-semibold ${calendar.loading ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : PRIMARY_BTN}`}
+                    >
+                      {calendar.loading ? (
+                        <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</span>
+                      ) : (
+                        'Authorize Google Calendar'
+                      )}
+                    </button>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-800">Google Calendar</p>
-                  <p className="text-sm text-gray-600">Work meetings, family events, study blocks</p>
-                </div>
-                {calendar.status === 'connected' ? (
-                  <span className="flex items-center gap-1 text-green-600 text-sm font-semibold">
-                    <CheckCircle2 className="w-4 h-4" /> Connected
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => handleConnect('google')}
-                    disabled={calendar.loading}
-                    className={`px-4 py-2 rounded-lg font-semibold ${calendar.loading ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : PRIMARY_BTN}`}
-                  >
-                    {calendar.loading ? (
-                      <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</span>
-                    ) : (
-                      'Authorize Google Calendar'
-                    )}
-                  </button>
-                )}
+                <p className="mt-2 text-sm text-gray-600">Work meetings, family events, study blocks</p>
               </div>
               {calendar.status !== 'connected' && (
                 <p className="mt-2 text-xs text-gray-500">
@@ -161,31 +163,33 @@ const ConnectionFlow = ({ onComplete }) => {
               subtitle="We’ll spot planning messages and turn them into options."
             />
             <div className="px-6 sm:px-10 pb-2">
-              <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl">
-                <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
-                  <MessageCircle className="w-5 h-5" />
+              <div className="p-4 border border-gray-200 rounded-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-800">WhatsApp</p>
+                  </div>
+                  {whatsapp.status === 'connected' ? (
+                    <span className="flex items-center gap-1 text-green-600 text-sm font-semibold">
+                      <CheckCircle2 className="w-4 h-4" /> Connected
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleConnect('whatsapp')}
+                      disabled={whatsapp.loading}
+                      className={`px-4 py-2 rounded-lg font-semibold ${whatsapp.loading ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : PRIMARY_BTN}`}
+                    >
+                      {whatsapp.loading ? (
+                        <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</span>
+                      ) : (
+                        'Connect WhatsApp'
+                      )}
+                    </button>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-800">WhatsApp</p>
-                  <p className="text-sm text-gray-600">Detect scheduling in family chats</p>
-                </div>
-                {whatsapp.status === 'connected' ? (
-                  <span className="flex items-center gap-1 text-green-600 text-sm font-semibold">
-                    <CheckCircle2 className="w-4 h-4" /> Connected
-                  </span>
-                ) : (
-                  <button
-                    onClick={() => handleConnect('whatsapp')}
-                    disabled={whatsapp.loading}
-                    className={`px-4 py-2 rounded-lg font-semibold ${whatsapp.loading ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : PRIMARY_BTN}`}
-                  >
-                    {whatsapp.loading ? (
-                      <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</span>
-                    ) : (
-                      'Connect WhatsApp'
-                    )}
-                  </button>
-                )}
+                <p className="mt-2 text-sm text-gray-600">Detect scheduling in family chats</p>
               </div>
               {whatsapp.status !== 'connected' && (
                 <p className="mt-2 text-xs text-gray-500">
