@@ -31,14 +31,12 @@ const ConnectionFlow = ({ onComplete }) => {
 
       setConnections(prev => {
         const updated = next(prev);
-        // After updating state, decide what to do next
-        // If Google connected, advance to WhatsApp (step 2)
+        // After updating state, decide what to do next without extra delay to avoid flicker
         if (appId === 'google') {
-          setTimeout(() => setStep(2), 300);
+          setStep(2);
         }
-        // If WhatsApp connected, finish the flow immediately
         if (appId === 'whatsapp' && typeof onComplete === 'function') {
-          setTimeout(() => onComplete(updated), 300);
+          onComplete(updated);
         }
         return updated;
       });
