@@ -11,7 +11,8 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     const el = document.querySelector(step.selector);
     if (!el) return setRect(null);
     const r = el.getBoundingClientRect();
-    setRect({ top: r.top + window.scrollY, left: r.left + window.scrollX, width: r.width, height: r.height });
+    // Use viewport coordinates directly so it aligns in fixed overlay (better for mobile)
+    setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
   }, [step.selector]);
 
   React.useEffect(() => {
@@ -53,8 +54,8 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         <div
           className="absolute rounded-xl border-2"
           style={{
-            top: rect.top - 8,
-            left: rect.left - 8,
+            top: Math.max(8, rect.top - 8),
+            left: Math.max(8, rect.left - 8),
             width: rect.width + 16,
             height: rect.height + 16,
             borderColor: '#119BFE',
