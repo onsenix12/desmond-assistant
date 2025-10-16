@@ -54,6 +54,12 @@ const ConflictCard = ({ conflict, onResolve }) => {
             <p className="text-sm text-gray-700 mb-2">
               {conflict.description}
             </p>
+            {conflict.howDetected && (
+              <div className="text-xs text-gray-600 bg-yellow-50 border border-yellow-200 rounded p-2">
+                <span className="font-semibold">Why this shows up: </span>
+                {conflict.howDetected}
+              </div>
+            )}
 
             {/* Pattern hint removed to reduce noise */}
 

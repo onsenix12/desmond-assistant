@@ -38,7 +38,7 @@ const ConnectionFlow = ({ onComplete }) => {
 
   const Header = ({ title, subtitle }) => (
     <div className="px-6 sm:px-10 pt-8 pb-4 text-center">
-      <div className="mx-auto mb-4 w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#119BFE] text-white flex items-center justify-center shadow-lg">
+      <div className="mx-auto mb-4 w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#119BFE] text-white flex items-center justify-center shadow-lg pointer-events-none select-none" aria-hidden="true">
         {/* Math icon vibe */}
         <Sigma className="w-6 h-6 sm:w-7 sm:h-7" />
       </div>
@@ -49,9 +49,9 @@ const ConnectionFlow = ({ onComplete }) => {
     </div>
   );
 
-  const Footer = ({ onSkip, onNext, nextLabel = 'Next' }) => (
+  const Footer = ({ onSkip, onNext, nextLabel = 'Next', hideSkip = false }) => (
     <div className="px-6 sm:px-10 pb-8 flex flex-col sm:flex-row items-center justify-center gap-3">
-      {onSkip && (
+      {onSkip && !hideSkip && (
         <button onClick={onSkip} className={`px-5 py-2 rounded-lg font-semibold ${GHOST_BTN}`}>
           Skip
         </button>
@@ -77,13 +77,13 @@ const ConnectionFlow = ({ onComplete }) => {
             <div className="px-6 sm:px-10 pb-6">
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-xl">
-                  <div className="w-10 h-10 rounded-lg bg-[#FFC6001A] text-[#119BFE] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
                     <Calendar className="w-5 h-5" />
                   </div>
                   <span className="text-sm font-medium text-gray-800">Calendar</span>
                 </div>
                 <div className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-xl">
-                  <div className="w-10 h-10 rounded-lg bg-[#FF6B4D1A] text-[#119BFE] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
                     <MessageCircle className="w-5 h-5" />
                   </div>
                   <span className="text-sm font-medium text-gray-800">WhatsApp</span>
@@ -122,13 +122,23 @@ const ConnectionFlow = ({ onComplete }) => {
                     {calendar.loading ? (
                       <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</span>
                     ) : (
-                      'Connect'
+                      'Authorize Google Calendar'
                     )}
                   </button>
                 )}
               </div>
+              {calendar.status !== 'connected' && (
+                <p className="mt-2 text-xs text-gray-500">
+                  We’ll request read-only access to your events. You can disconnect anytime.
+                </p>
+              )}
             </div>
-            <Footer onSkip={() => setStep(2)} onNext={() => setStep(2)} nextLabel={calendar.status === 'connected' ? 'Continue' : 'Skip for now'} />
+            <Footer 
+              onSkip={() => setStep(2)} 
+              onNext={() => setStep(2)} 
+              nextLabel={calendar.status === 'connected' ? 'Continue' : 'Skip for now'} 
+              hideSkip={calendar.status !== 'connected'}
+            />
           </>
         )}
 
@@ -160,16 +170,22 @@ const ConnectionFlow = ({ onComplete }) => {
                     {whatsapp.loading ? (
                       <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting…</span>
                     ) : (
-                      'Connect'
+                      'Connect WhatsApp'
                     )}
                   </button>
                 )}
               </div>
+              {whatsapp.status !== 'connected' && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Only messages you select are used for planning. We never post without asking.
+                </p>
+              )}
             </div>
             <Footer 
               onSkip={() => onComplete(connections)} 
               onNext={() => onComplete(connections)} 
               nextLabel={whatsapp.status === 'connected' ? 'Finish' : 'Finish without WhatsApp'} 
+              hideSkip={whatsapp.status !== 'connected'}
             />
           </>
         )}

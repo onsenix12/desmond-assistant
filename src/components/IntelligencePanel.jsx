@@ -16,9 +16,10 @@ const IntelligencePanel = ({
   onPatternAction
 }) => {
   const [activeTab, setActiveTab] = useState('conflicts'); // 'conflicts', 'suggestions', 'patterns'
+  const [smartPrefs, setSmartPrefs] = useState({ exercise: true, restaurant: true, study: true, family: true, productivity: true });
 
   const visibleConflicts = conflicts || [];
-  const visibleSuggestions = suggestions || [];
+  const visibleSuggestions = (suggestions || []).filter(s => smartPrefs[s.category ?? 'productivity']);
   const visiblePatterns = [];
 
   // Insights removed per feedback – no pattern actions.
@@ -262,6 +263,18 @@ const IntelligencePanel = ({
                   <p className="text-xs text-gray-600">
                     AI-powered recommendations based on your patterns
                   </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {Object.keys(smartPrefs).map(key => (
+                      <button
+                        key={key}
+                        onClick={() => setSmartPrefs(p => ({ ...p, [key]: !p[key] }))}
+                        className={`text-xs px-2 py-1 rounded-full border ${smartPrefs[key] ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-300 text-gray-600'}`}
+                        aria-pressed={smartPrefs[key]}
+                      >
+                        {smartPrefs[key] ? '✓ ' : ''}{key.charAt(0).toUpperCase() + key.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 
                 {visibleSuggestions.map((suggestion) => (
