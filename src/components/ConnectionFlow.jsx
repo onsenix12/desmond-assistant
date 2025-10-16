@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, MessageCircle, CheckCircle2, Loader2, Sigma } from 'lucide-react';
+import { Calendar, MessageCircle, CheckCircle2, Loader2, Clock3, Shapes } from 'lucide-react';
 
 // Brand palette
 // Yellow: #FFC600, Orange: #FF6B4D, Blue: #119BFE, Green: #28C840
@@ -49,8 +49,11 @@ const ConnectionFlow = ({ onComplete }) => {
   const Header = ({ title, subtitle }) => (
     <div className="px-6 sm:px-10 pt-8 pb-4 text-center">
       <div className="mx-auto mb-4 w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-[#119BFE] text-white flex items-center justify-center shadow-lg pointer-events-none select-none" aria-hidden="true">
-        {/* Math icon vibe */}
-        <Sigma className="w-6 h-6 sm:w-7 sm:h-7" />
+        {/* Time + Tetris metaphor: clock over block */}
+        <div className="relative">
+          <Clock3 className="w-6 h-6 sm:w-7 sm:h-7" />
+          <Shapes className="w-3.5 h-3.5 absolute -right-2 -bottom-2 opacity-90" />
+        </div>
       </div>
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{title}</h1>
       {subtitle && (
