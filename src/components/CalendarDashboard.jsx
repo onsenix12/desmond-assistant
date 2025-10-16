@@ -1086,14 +1086,7 @@ const CalendarDashboard = ({ connectedApps }) => {
         </div>
       </div>
 
-      {/* Add Event Floating Button */}
-      <button
-        onClick={handleOpenAdd}
-        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 px-4 py-3 rounded-full shadow-xl text-white bg-[#119BFE] hover:brightness-95 focus:outline-none"
-        aria-label="Add event"
-      >
-        + Add Event
-      </button>
+      {/* Removed floating Add Event button to avoid duplication with header 'New' */}
 
       {/* Add Event Modal */}
       {showAddEvent && (
