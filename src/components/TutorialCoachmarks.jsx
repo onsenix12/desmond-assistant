@@ -11,8 +11,20 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     const el = document.querySelector(step.selector);
     if (!el) return setRect(null);
     const r = el.getBoundingClientRect();
-    // Use viewport coordinates directly so it aligns in fixed overlay (better for mobile)
-    setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+
+    // Align to the visual viewport so fixed overlay matches on mobile browsers
+    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
+    const offsetLeft = vv ? vv.offsetLeft : 0;
+    const offsetTop = vv ? vv.offsetTop : 0;
+    const scale = vv ? vv.scale || 1 : 1;
+
+    // Translate layout-viewport rect into visual-viewport coordinates and account for zoom scale
+    const top = (r.top - offsetTop) * scale;
+    const left = (r.left - offsetLeft) * scale;
+    const width = r.width * scale;
+    const height = r.height * scale;
+
+    setRect({ top, left, width, height });
   }, [step.selector]);
 
   React.useEffect(() => {
@@ -23,14 +35,44 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         try { el.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' }); } catch {}
       }
     }
-    measure();
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, true);
+
+    // Initial measure on next frame to avoid layout thrash
+    const rafId = requestAnimationFrame(measure);
+
+    // Window events
+    window.addEventListener('resize', measure, { passive: true });
+    window.addEventListener('scroll', measure, { capture: true, passive: true });
+
+    // Visual viewport events (mobile address bar, zoom, etc.)
+    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
+    if (vv) {
+      vv.addEventListener('resize', measure, { passive: true });
+      vv.addEventListener('scroll', measure, { passive: true });
+    }
+
+    // Observe element size/position changes
+    let ro = null;
+    if (step.selector) {
+      const el = document.querySelector(step.selector);
+      if (el && typeof ResizeObserver !== 'undefined') {
+        ro = new ResizeObserver(() => measure());
+        try { ro.observe(el); } catch {}
+      }
+    }
+
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener('resize', measure);
       window.removeEventListener('scroll', measure, true);
+      if (vv) {
+        vv.removeEventListener('resize', measure);
+        vv.removeEventListener('scroll', measure);
+      }
+      if (ro) {
+        try { ro.disconnect(); } catch {}
+      }
     };
-  }, [measure]);
+  }, [measure, step.selector]);
 
   const placement = step.placement || 'bottom';
   const offset = 12;
