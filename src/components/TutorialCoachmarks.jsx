@@ -5,6 +5,8 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
   const step = steps[Math.min(stepIndex, steps.length - 1)];
 
   const [rect, setRect] = React.useState(null);
+  const [cardSize, setCardSize] = React.useState({ width: 0, height: 0 });
+  const cardRef = React.useRef(null);
 
   const measure = React.useCallback(() => {
     if (!step.selector) return setRect(null);
@@ -32,7 +34,11 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     if (step.selector) {
       const el = document.querySelector(step.selector);
       if (el && el.scrollIntoView) {
-        try { el.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' }); } catch {}
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        } catch (e) {
+          try { el.scrollIntoView(); } catch {}
+        }
       }
     }
 
@@ -74,24 +80,103 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     };
   }, [measure, step.selector]);
 
+  // Measure card size whenever it renders or content changes
+  React.useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setCardSize({ width: r.width, height: r.height });
+    };
+    update();
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(update);
+      try { ro.observe(el); } catch {}
+    }
+    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
+    if (vv) {
+      vv.addEventListener('resize', update, { passive: true });
+      vv.addEventListener('scroll', update, { passive: true });
+    }
+    return () => {
+      if (ro) try { ro.disconnect(); } catch {}
+      if (vv) {
+        vv.removeEventListener('resize', update);
+        vv.removeEventListener('scroll', update);
+      }
+    };
+  }, [stepIndex]);
+
   const placement = step.placement || 'bottom';
   const offset = 12;
 
   const cardPos = () => {
-    if (!rect) return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+    if (!rect) return { style: { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }, effPlacement: placement };
+
+    const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
+    const viewportWidth = vv ? vv.width : window.innerWidth;
+    const viewportHeight = vv ? vv.height : window.innerHeight;
+    const padding = 12;
+
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
-    switch (placement) {
-      case 'top':
-        return { top: rect.top - offset, left: centerX, transform: 'translate(-50%, -100%)' };
-      case 'left':
-        return { top: centerY, left: rect.left - offset, transform: 'translate(-100%, -50%)' };
-      case 'right':
-        return { top: centerY, left: rect.left + rect.width + offset, transform: 'translate(0,-50%)' };
-      default:
-        return { top: rect.top + rect.height + offset, left: centerX, transform: 'translate(-50%, 0)' };
+
+    let top; let left; let transform; let effPlacement = placement;
+
+    // Base positions by requested placement
+    if (placement === 'top') {
+      top = rect.top - offset; left = centerX; transform = 'translate(-50%, -100%)';
+    } else if (placement === 'left') {
+      top = centerY; left = rect.left - offset; transform = 'translate(-100%, -50%)';
+    } else if (placement === 'right') {
+      top = centerY; left = rect.left + rect.width + offset; transform = 'translate(0,-50%)';
+    } else { // bottom
+      top = rect.top + rect.height + offset; left = centerX; transform = 'translate(-50%, 0)';
     }
+
+    // Smart flip to keep inside viewport based on current card size
+    const halfCardW = cardSize.width / 2;
+    const cardH = cardSize.height;
+
+    if (placement === 'top') {
+      if (top - cardH < padding) { // flip to bottom
+        top = rect.top + rect.height + offset; transform = 'translate(-50%, 0)'; effPlacement = 'bottom';
+      }
+    } else if (placement === 'bottom') {
+      if (top + cardH > viewportHeight - padding) { // flip to top
+        top = rect.top - offset; transform = 'translate(-50%, -100%)'; effPlacement = 'top';
+      }
+    } else if (placement === 'left') {
+      if (left - cardSize.width < padding) { // flip to right
+        left = rect.left + rect.width + offset; transform = 'translate(0,-50%)'; effPlacement = 'right';
+      }
+    } else if (placement === 'right') {
+      if (left + cardSize.width > viewportWidth - padding) { // flip to left
+        left = rect.left - offset; transform = 'translate(-100%, -50%)'; effPlacement = 'left';
+      }
+    }
+
+    // Horizontal centering protection when using translateX(-50%)
+    if (transform.includes('translate(-50%')) {
+      if (left - halfCardW < padding) left = halfCardW + padding;
+      if (left + halfCardW > viewportWidth - padding) left = viewportWidth - halfCardW - padding;
+    }
+
+    // Vertical centering protection when using translateY(-50%)
+    if (transform.includes(', -50%)') || transform.includes(',-50%)')) {
+      const halfCardH = cardH / 2;
+      if (top - halfCardH < padding) top = halfCardH + padding;
+      if (top + halfCardH > viewportHeight - padding) top = viewportHeight - halfCardH - padding;
+    }
+
+    return { style: { top, left, transform }, effPlacement };
   };
+
+  const { style: computedCardStyle, effPlacement } = cardPos();
+
+  const handleNext = (e) => { e.preventDefault(); e.stopPropagation(); onNext && onNext(); };
+  const handleSkip = (e) => { e.preventDefault(); e.stopPropagation(); onSkip && onSkip(); };
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none">
@@ -115,24 +200,26 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
 
       {/* Callout card */}
       <div
+        ref={cardRef}
         className="absolute bg-white w-[min(90vw,360px)] rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
-        style={cardPos()}
+        style={computedCardStyle}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="tutorial-title"
       >
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-bold text-gray-900 text-sm sm:text-base">{step.title}</h3>
-          <button onClick={onSkip} className="text-gray-500 hover:text-gray-700 text-sm">Skip</button>
+          <h3 id="tutorial-title" className="font-bold text-gray-900 text-sm sm:text-base">{step.title}</h3>
+          <button type="button" onClick={handleSkip} className="text-gray-500 hover:text-gray-700 text-sm active:scale-[0.98]">Skip</button>
         </div>
-        <div className="px-4 py-3">
-          <p className="text-sm text-gray-700">{step.body}</p>
+        <div className="px-4 py-3 max-h-[80vh] overflow-y-auto">
+          <p className="text-sm text-gray-700 leading-relaxed">{step.body}</p>
           {step.tip && (
-            <div className="mt-2 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-3">{step.tip}</div>
+            <div className="mt-2 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3">💡 {step.tip}</div>
           )}
         </div>
-        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
           <div className="text-xs text-gray-500">Step {stepIndex + 1} of {steps.length}</div>
-          <button onClick={onNext} className="px-3 py-1.5 rounded-lg text-white bg-[#119BFE] hover:brightness-95 font-semibold text-sm">
+          <button type="button" onClick={handleNext} className="px-3 py-2 rounded-lg text-white bg-[#119BFE] hover:brightness-95 active:scale-[0.98] shadow-sm font-semibold text-sm">
             {stepIndex + 1 === steps.length ? 'Done' : 'Next'}
           </button>
         </div>
@@ -143,27 +230,27 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
         <div
           className="absolute w-0 h-0 pointer-events-none"
           style={{
-            ...(placement === 'top' && { top: (rect.top - offset) + 'px', left: (rect.left + rect.width / 2) + 'px', transform: 'translate(-50%, -100%)' }),
-            ...(placement === 'bottom' && { top: (rect.top + rect.height + offset) + 'px', left: (rect.left + rect.width / 2) + 'px', transform: 'translate(-50%, 0)' }),
-            ...(placement === 'left' && { top: (rect.top + rect.height / 2) + 'px', left: (rect.left - offset) + 'px', transform: 'translate(-100%, -50%)' }),
-            ...(placement === 'right' && { top: (rect.top + rect.height / 2) + 'px', left: (rect.left + rect.width + offset) + 'px', transform: 'translate(0, -50%)' })
+            ...(effPlacement === 'top' && { top: (rect.top - offset) + 'px', left: (rect.left + rect.width / 2) + 'px', transform: 'translate(-50%, -100%)' }),
+            ...(effPlacement === 'bottom' && { top: (rect.top + rect.height + offset) + 'px', left: (rect.left + rect.width / 2) + 'px', transform: 'translate(-50%, 0)' }),
+            ...(effPlacement === 'left' && { top: (rect.top + rect.height / 2) + 'px', left: (rect.left - offset) + 'px', transform: 'translate(-100%, -50%)' }),
+            ...(effPlacement === 'right' && { top: (rect.top + rect.height / 2) + 'px', left: (rect.left + rect.width + offset) + 'px', transform: 'translate(0, -50%)' })
           }}
         >
           <div
             className="w-0 h-0"
             style={{
-              borderLeft: placement === 'bottom' || placement === 'top' ? '8px solid transparent' : undefined,
-              borderRight: placement === 'bottom' || placement === 'top' ? '8px solid transparent' : undefined,
-              borderTop: placement === 'bottom' ? '10px solid white' : undefined,
-              borderBottom: placement === 'top' ? '10px solid white' : undefined,
-              borderTopColor: placement === 'bottom' ? 'white' : undefined,
-              borderBottomColor: placement === 'top' ? 'white' : undefined,
-              borderTopWidth: placement === 'bottom' ? 10 : undefined,
-              borderBottomWidth: placement === 'top' ? 10 : undefined,
-              borderLeftWidth: placement === 'left' ? 10 : (placement === 'right' ? 0 : 8),
-              borderRightWidth: placement === 'right' ? 10 : (placement === 'left' ? 0 : 8),
-              borderLeftColor: placement === 'right' ? 'white' : 'transparent',
-              borderRightColor: placement === 'left' ? 'white' : 'transparent',
+              borderLeft: effPlacement === 'bottom' || effPlacement === 'top' ? '8px solid transparent' : undefined,
+              borderRight: effPlacement === 'bottom' || effPlacement === 'top' ? '8px solid transparent' : undefined,
+              borderTop: effPlacement === 'bottom' ? '10px solid white' : undefined,
+              borderBottom: effPlacement === 'top' ? '10px solid white' : undefined,
+              borderTopColor: effPlacement === 'bottom' ? 'white' : undefined,
+              borderBottomColor: effPlacement === 'top' ? 'white' : undefined,
+              borderTopWidth: effPlacement === 'bottom' ? 10 : undefined,
+              borderBottomWidth: effPlacement === 'top' ? 10 : undefined,
+              borderLeftWidth: effPlacement === 'left' ? 10 : (effPlacement === 'right' ? 0 : 8),
+              borderRightWidth: effPlacement === 'right' ? 10 : (effPlacement === 'left' ? 0 : 8),
+              borderLeftColor: effPlacement === 'right' ? 'white' : 'transparent',
+              borderRightColor: effPlacement === 'left' ? 'white' : 'transparent',
               boxShadow: '0 1px 2px rgba(0,0,0,0.15)'
             }}
           />
