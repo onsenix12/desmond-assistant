@@ -48,62 +48,34 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     // Initial measure on next frame to avoid layout thrash
     const rafId = requestAnimationFrame(measure);
 
-    // AGGRESSIVE FIX: Only update after scrolling STOPS
-    let scrollTimeout = null;
-    let isScrolling = false;
-
-    const handleScroll = () => {
-      isScrolling = true;
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
-      }
-      scrollTimeout = setTimeout(() => {
-        isScrolling = false;
-        measure();
-      }, 150);
-    };
-
-    // Resize updates immediately (not during scroll)
-    const handleResize = () => {
-      if (!isScrolling) {
-        measure();
-      }
-    };
+    // Only measure on resize, NOT on scroll
+    const handleResize = () => measure();
     
     window.addEventListener('resize', handleResize, { passive: true });
-    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    // NO SCROLL LISTENER - card stays fixed during scroll!
 
-    // Visual viewport events
+    // Visual viewport resize only
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     if (vv) {
       vv.addEventListener('resize', handleResize, { passive: true });
-      vv.addEventListener('scroll', handleScroll, { passive: true });
+      // NO SCROLL LISTENER for visual viewport either
     }
 
-    // Observe element size/position changes (but not during scroll)
+    // Observe element size/position changes
     let ro = null;
     if (step.selector) {
       const el = document.querySelector(step.selector);
       if (el && typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(() => {
-          if (!isScrolling) {
-            measure();
-          }
-        });
+        ro = new ResizeObserver(() => measure());
         try { ro.observe(el); } catch {}
       }
     }
 
     return () => {
       cancelAnimationFrame(rafId);
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
-      }
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleScroll, true);
       if (vv) {
         vv.removeEventListener('resize', handleResize);
-        vv.removeEventListener('scroll', handleScroll);
       }
       if (ro) {
         try { ro.disconnect(); } catch {}
