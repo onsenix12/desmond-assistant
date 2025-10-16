@@ -199,7 +199,10 @@ const CalendarGrid = ({
       </div>
 
       {/* Legend */}
-      <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-gray-600 gap-2 sm:gap-0">
+      <div 
+        data-testid="calendar-legend"
+        className="mt-3 sm:mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs text-gray-600 gap-2 sm:gap-0 calendar-legend"
+      >
         <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
           <div className="flex items-center gap-1 sm:gap-1.5">
             <div className="w-2 h-2 sm:w-3 sm:h-3 bg-blue-600 rounded"></div>
