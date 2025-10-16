@@ -21,6 +21,7 @@ A sophisticated React application that serves as a personal assistant for planni
 - **One-click resolutions** with pre-written auto-messages
 - **Smart recommendations** with reasoning and impact analysis
 - **Severity indicators** (High/Medium/Low) with color coding
+- **Active conflicts highlighted in red** across the app (cards, chips, text) until resolved
 - **Auto-resolve options** for common conflict types
 
 ### 🎯 **Smart Action Cards**
@@ -29,6 +30,7 @@ A sophisticated React application that serves as a personal assistant for planni
 - **Family coordination** - auto-messages to group chats
 - **Decision fatigue reduction** - 2-hour decisions become 2-second clicks
 - **Context-aware recommendations** based on preferences and history
+- **Personalization controls** - compact Filters dropdown to include/exclude categories
 
 ### 📱 **Mobile-First Design**
 - **Responsive layout** that works on all devices
@@ -102,7 +104,7 @@ src/
 │   ├── IntelligencePanel.jsx      # Right sidebar with AI features
 │   ├── ConflictCard.jsx           # Conflict resolution cards
 │   ├── SmartActionCard.jsx        # AI recommendation cards
-│   ├── ConnectionFlow.jsx         # Onboarding flow
+│   ├── ConnectionFlow.jsx         # Onboarding flow (clear connect actions, no duplicate skip)
 │   ├── ChatInterface.jsx          # Desktop chat interface
 │   ├── MobileChat.jsx             # Mobile chat interface
 │   ├── MobileNavigation.jsx       # Bottom mobile navigation
@@ -129,13 +131,14 @@ src/
 ## 🎮 Usage Guide
 
 ### First Time Setup
-1. **Connect Apps** - Link your calendar and messaging apps (demo mode)
-2. **Review Preferences** - Set your coffee time, family preferences, etc.
-3. **Access Dashboard** - Start using the intelligent calendar
+1. **Connect Apps** - Clear "Authorize Google Calendar" and "Connect WhatsApp" actions with privacy copy
+2. **Welcome Banner** - Greeted on the dashboard with a Start tour or Dismiss option
+3. **Guided Tutorial** - Starts when you tap Start tour; highlights key areas step‑by‑step
+4. **Access Dashboard** - Use the intelligent calendar
 
 ### Daily Workflow
 1. **View Calendar** - See your schedule with busyness indicators
-2. **Check Conflicts** - Red badges show scheduling conflicts
+2. **Check Conflicts** - Red badges and red-styled cards highlight conflicts until resolved
 3. **Resolve Issues** - One-click solutions with auto-messages
 4. **Get Suggestions** - Smart recommendations for restaurants, exercise, etc.
 5. **Review Patterns** - AI insights about your scheduling habits
@@ -193,6 +196,8 @@ module.exports = {
     'bg-purple-50', 'bg-purple-100', 'bg-purple-200', 'bg-purple-600',
     'bg-orange-50', 'bg-orange-100', 'bg-orange-200', 'bg-orange-600',
     'bg-red-50', 'bg-red-100', 'bg-red-200', 'bg-red-600',
+    // Conflict prominence
+    'border-red-500', 'bg-red-50', 'text-red-800', 'bg-red-200',
     // ... additional color classes
   ],
   plugins: [],
