@@ -113,41 +113,41 @@ const CalendarDashboard = ({ connectedApps }) => {
   const tutorialSteps = [
     { 
       key: 'legend', 
-      title: 'Color-Coded Calendar', 
-      body: 'Events are color-coded: Blue (Work), Green (Family), Purple (Personal), Orange (Study).',
-      tip: '⚠️ = conflicts, 🛡️ = protected time',
+      title: 'Understanding Your Calendar', 
+      body: 'Events are color-coded by category: Blue for Work, Green for Family, Purple for Personal, and Orange for Study. The red alert icon (⚠️) shows conflicts, and the purple shield (🛡️) marks protected time blocks.',
+      tip: 'Understanding these colors helps you quickly see your schedule balance at a glance.',
       selector: '[data-testid="calendar-legend"]',
       placement: 'top' 
     },
     { 
       key: 'new', 
-      title: 'Create Events', 
-      body: 'Add meetings, appointments, or family time in seconds.',
-      tip: 'Syncs with all connected calendars instantly',
+      title: 'Adding Events', 
+      body: 'Click here to create a new event. You can add meetings, appointments, study sessions, or family time. Each event will be automatically color-coded based on its category.',
+      tip: 'Events sync with your connected calendar apps in real-time.',
       selector: '[aria-label="New event"]', 
       placement: 'bottom' 
     },
     { 
       key: 'grid', 
-      title: 'Monthly Overview', 
-      body: 'Tap any date to view details. Darker colors = busier days.',
-      tip: 'Red badges show scheduling conflicts',
+      title: 'Your Schedule Overview', 
+      body: 'Tap any date to see detailed events for that day. The color intensity shows how busy each day is - darker means more packed. Look for red badges indicating scheduling conflicts.',
+      tip: 'The busyness visualization helps you identify overloaded days before they become a problem.',
       selector: '[data-testid="calendar-grid"]', 
       placement: 'top' 
     },
     { 
       key: 'sheet', 
-      title: 'Daily Events', 
-      body: 'View and edit all events for the selected day.',
-      tip: 'Swipe down to close and return to calendar',
+      title: 'Day Details View', 
+      body: 'See all events for the selected day in chronological order. You can edit existing events, add new ones, or drag to reorder. Changes save automatically.',
+      tip: 'Swipe down to close this panel and return to the monthly view.',
       selector: '[data-testid="mobile-sheet"]', 
       placement: 'top' 
     },
     { 
       key: 'conflict', 
-      title: 'Auto Conflict Resolution', 
-      body: 'Tap to resolve conflicts with pre-written messages automatically.',
-      tip: 'Works across all your connected calendars',
+      title: 'Smart Conflict Resolution', 
+      body: 'When Time Tetris detects scheduling conflicts, it offers one-tap solutions with pre-written messages. Just pick an option and we\'ll handle the rest - no back-and-forth needed.',
+      tip: 'Conflicts are detected automatically across all your connected calendars.',
       selector: '[data-testid="conflicts-panel"]', 
       placement: 'left' 
     }
