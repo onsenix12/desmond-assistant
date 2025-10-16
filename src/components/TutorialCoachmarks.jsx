@@ -29,53 +29,63 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
   }, [step.selector]);
 
   React.useEffect(() => {
-    // Scroll target into view on mobile, then measure
+    // Scroll target into view, then measure
     if (step.selector) {
       const el = document.querySelector(step.selector);
-      if (el && el.scrollIntoView) {
-        try { 
-          el.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'center', 
-            inline: 'center' 
-          }); 
+      if (el?.scrollIntoView) {
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
         } catch (e) {
           try { el.scrollIntoView(); } catch {}
         }
       }
     }
 
-    // Initial measure on next frame to avoid layout thrash
     const rafId = requestAnimationFrame(measure);
 
-    // Only measure on resize, NOT on scroll
-    const handleResize = () => measure();
+    // Debounced scroll measurement and rAF-resized measurement
+    let scrollDebounceTimer = null;
+    let resizeRafId = null;
+
+    const debouncedScrollMeasure = () => {
+      if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
+      scrollDebounceTimer = setTimeout(() => measure(), 100);
+    };
+
+    const handleResize = () => {
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
+      resizeRafId = requestAnimationFrame(() => measure());
+    };
+
+    const handleScroll = () => debouncedScrollMeasure();
     
     window.addEventListener('resize', handleResize, { passive: true });
-    // NO SCROLL LISTENER - card stays fixed during scroll!
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
 
-    // Visual viewport resize only
     const vv = typeof window !== 'undefined' && window.visualViewport ? window.visualViewport : null;
     if (vv) {
       vv.addEventListener('resize', handleResize, { passive: true });
-      // NO SCROLL LISTENER for visual viewport either
+      vv.addEventListener('scroll', handleScroll, { passive: true });
     }
 
-    // Observe element size/position changes
     let ro = null;
     if (step.selector) {
       const el = document.querySelector(step.selector);
       if (el && typeof ResizeObserver !== 'undefined') {
-        ro = new ResizeObserver(() => measure());
+        ro = new ResizeObserver(() => requestAnimationFrame(measure));
         try { ro.observe(el); } catch {}
       }
     }
 
     return () => {
       cancelAnimationFrame(rafId);
+      if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
+      if (resizeRafId) cancelAnimationFrame(resizeRafId);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', handleScroll, true);
       if (vv) {
         vv.removeEventListener('resize', handleResize);
+        vv.removeEventListener('scroll', handleScroll);
       }
       if (ro) {
         try { ro.disconnect(); } catch {}
@@ -417,6 +427,8 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
           width: 'min(90vw, 360px)',
           maxHeight: '80vh',
           zIndex: 100,
+          transition: 'top 0.2s ease-out, left 0.2s ease-out, transform 0.2s ease-out',
+          willChange: 'top, left, transform'
         }}
         role="dialog"
         aria-modal="true"
@@ -464,6 +476,8 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
           style={{
             ...pointerPos(),
             zIndex: 99,
+            transition: 'top 0.2s ease-out, left 0.2s ease-out, transform 0.2s ease-out',
+            willChange: 'top, left, transform'
           }}
         >
           <div
