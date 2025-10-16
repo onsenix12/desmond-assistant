@@ -6,8 +6,9 @@ const MobileBottomSheet = ({ open, onClose, header, children }) => {
       {/* Peek bar */}
       {!open && (
         <div className="lg:hidden fixed left-0 right-0 flex justify-center z-50" style={{ bottom: 'calc(env(safe-area-inset-bottom) + 56px)' }}>
-          <div className="px-4 py-2 bg-white/95 backdrop-blur border border-gray-200 rounded-full shadow-lg text-xs text-gray-700">
-            {header}
+          {/* Minimal grabber with no text */}
+          <div className="px-3 py-2 bg-white/90 backdrop-blur border border-gray-200 rounded-full shadow-lg">
+            <div className="w-10 h-1.5 bg-gray-300 rounded-full" />
           </div>
         </div>
       )}
