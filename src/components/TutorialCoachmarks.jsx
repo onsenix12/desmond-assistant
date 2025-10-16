@@ -49,9 +49,24 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
     // Initial measure on next frame to avoid layout thrash
     const rafId = requestAnimationFrame(measure);
 
+    // Throttled measure for scroll events to avoid jumpiness
+    let scrollRafId = null;
+    let isScrolling = false;
+
+    const throttledMeasure = () => {
+      if (isScrolling) return;
+      isScrolling = true;
+      if (scrollRafId) cancelAnimationFrame(scrollRafId);
+      scrollRafId = requestAnimationFrame(() => {
+        measure();
+        isScrolling = false;
+        scrollRafId = null;
+      });
+    };
+
     // Window events with passive listeners to improve performance
     const handleResize = () => measure();
-    const handleScroll = () => measure();
+    const handleScroll = () => throttledMeasure();
     
     window.addEventListener('resize', handleResize, { passive: true });
     window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
@@ -75,6 +90,7 @@ const TutorialCoachmarks = ({ stepIndex, steps, onNext, onSkip }) => {
 
     return () => {
       cancelAnimationFrame(rafId);
+      if (scrollRafId) cancelAnimationFrame(scrollRafId);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('scroll', handleScroll, true);
       if (vv) {
