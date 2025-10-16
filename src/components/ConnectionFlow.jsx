@@ -23,13 +23,25 @@ const ConnectionFlow = ({ onComplete }) => {
     }));
 
     setTimeout(() => {
-      setConnections(prev => ({
+      // Compute the next connection state once
+      const next = (prev => ({
         ...prev,
         [appId]: { status: 'connected', loading: false }
       }));
 
-      // Advance automatically when a step's connection succeeds
-      setTimeout(() => setStep(s => Math.min(s + 1, 3)), 400);
+      setConnections(prev => {
+        const updated = next(prev);
+        // After updating state, decide what to do next
+        // If Google connected, advance to WhatsApp (step 2)
+        if (appId === 'google') {
+          setTimeout(() => setStep(2), 300);
+        }
+        // If WhatsApp connected, finish the flow immediately
+        if (appId === 'whatsapp' && typeof onComplete === 'function') {
+          setTimeout(() => onComplete(updated), 300);
+        }
+        return updated;
+      });
     }, 1200);
   };
 
