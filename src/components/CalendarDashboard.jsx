@@ -82,6 +82,13 @@ const CalendarDashboard = ({ connectedApps }) => {
     setSheetOpen(true); // open sheet on mobile when a date is chosen
   };
 
+  // Close mobile sheet when selected day is cleared
+  React.useEffect(() => {
+    if (!selectedDate) {
+      setSheetOpen(false);
+    }
+  }, [selectedDate]);
+
   const handleOpenAdd = () => {
     // Prefill with selected date if available
     const dateStr = selectedDate
@@ -1181,20 +1188,22 @@ const CalendarDashboard = ({ connectedApps }) => {
         onClose={() => setSheetOpen(false)}
         header={selectedDate ? `${selectedDate.year}-${String(selectedDate.month + 1).padStart(2,'0')}-${String(selectedDate.day).padStart(2,'0')}` : 'Day details'}
       >
-        <div className="px-4 pb-6">
-          <EventList 
-            selectedDate={selectedDate}
-            selectedDayEvents={selectedDayEvents}
-            setSelectedDate={setSelectedDate}
-            shouldEventShowStrikethrough={shouldEventShowStrikethrough}
-          />
-          <button
-            onClick={() => { setShowAddEvent(true); setSheetOpen(false); }}
-            className="mt-2 w-full px-4 py-2 rounded-lg text-white bg-[#119BFE] hover:brightness-95"
-          >
-            New event
-          </button>
-        </div>
+        {selectedDate && (
+          <div className="px-4 pb-6">
+            <EventList 
+              selectedDate={selectedDate}
+              selectedDayEvents={selectedDayEvents}
+              setSelectedDate={setSelectedDate}
+              shouldEventShowStrikethrough={shouldEventShowStrikethrough}
+            />
+            <button
+              onClick={() => { setShowAddEvent(true); setSheetOpen(false); }}
+              className="mt-2 w-full px-4 py-2 rounded-lg text-white bg-[#119BFE] hover:brightness-95"
+            >
+              New event
+            </button>
+          </div>
+        )}
       </MobileBottomSheet>
 
       {/* Mobile Bottom Navigation */}
